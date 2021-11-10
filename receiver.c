@@ -1,5 +1,3 @@
-/*Non-Canonical Input Processing*/
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -9,35 +7,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define BAUDRATE B38400
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
+#include "common.h"
 
-#define FLAG 0X7E
-#define A 0x03
-#define C_SET 0x03
-#define C_UA 0x07
 
-volatile int STOP=FALSE;
-
-int compare_sets(unsigned char set1[], unsigned char set2[], int len){
-    int res = 1;
-    for (int i = 0; i < len; i++){
-        res = res && (set1[i] == set2[i]);
-    }
-    return res;
-}
-
-int main(int argc, char** argv)
-{
-    int fd,c, res;
+int main(int argc, char** argv) {
+    int fd, res;
+    //int c;
     struct termios oldtio,newtio;
-    char buf[255];
+    //char buf[255];
 
     if (argc != 2) {
-      printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-      exit(1);
+        printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS<i>\n");
+        exit(1);
     }
 
 
@@ -48,11 +29,14 @@ int main(int argc, char** argv)
   
     
     fd = open(argv[1], O_RDWR | O_NOCTTY );
-    if (fd <0) {perror(argv[1]); exit(-1); }
+    if (fd < 0) {
+        perror(argv[1]);
+        exit(-1);
+    }
 
-    if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-      perror("tcgetattr");
-      exit(-1);
+    if (tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
+        perror("tcgetattr");
+        exit(-1);
     }
 
     bzero(&newtio, sizeof(newtio));
@@ -77,23 +61,14 @@ int main(int argc, char** argv)
 
     tcflush(fd, TCIOFLUSH);
 
-    if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
-      perror("tcsetattr");
-      exit(-1);
+    if (tcsetattr(fd,TCSANOW,&newtio) == -1) {
+        perror("tcsetattr");
+        exit(-1);
     }
 
     printf("New termios structure set\n");
 
     /// STARTS HERE
-
-    unsigned char SET[5];
-
-    SET[0] = FLAG;
-    SET[1] = A;
-    SET[2] = C_SET;
-    SET[3] = SET[1]^SET[2];
-    SET[4] = FLAG;
-
     unsigned char UA[5];
 
     UA[0] = FLAG;
@@ -102,26 +77,28 @@ int main(int argc, char** argv)
     UA[3] = UA[1]^UA[2];
     UA[4] = FLAG;
 
-    unsigned char received_set[5];
+    // TODO should the receiver also time out?
+    state_set_ua_t state = START;
+    while (state != STOP) {
+        unsigned char byte_read = 0;
+        res = read(fd, &byte_read, 1);
 
-    char temp_buf[255];
-
-    do{
-        bzero(received_set, 5);
-        for (int i = 0; i < 5; i++){
-            res = read(fd, temp_buf, 1);
-            received_set[i] = temp_buf[0];
-            printf("Debug: %x %x %d\n", received_set[i], SET[i], res);    
+        if (res == 1) {
+            if (update_state_set_ua(C_SET, &state, byte_read) != 0) {
+                return 1;
+            }
+        } else {
+            printf("DEBUG: not supposed to happen\n");
         }
-    } while (!compare_sets(SET, received_set, 5));
+    }
+    
+    if (write(fd, UA, 5) < 0) {
+        perror("");
+        return 1;
+    }
 
     printf("ACK\n");
 
-    sleep(15);
-
-    write(fd, UA, 5);
-
-    sleep(2);
 
   /* 
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião 
