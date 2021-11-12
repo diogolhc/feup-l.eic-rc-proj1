@@ -11,13 +11,13 @@
 
 #define TIME_OUT_TIME 3
 
-typedef enum state_set_ua {
-    START,
-    FLAG_RCV,
-    A_RCV,
-    C_RCV,
-    BCC_OK,
-    STOP
-} state_set_ua_t;
 
-int update_state_set_ua(unsigned char c, state_set_ua_t *state, unsigned char byte);
+typedef enum type {
+    TRANSMITETR,
+    RECEIVER
+} type_t;
+
+
+int llopen(int porta, type_t type);
+
+int llclose(int fd);
