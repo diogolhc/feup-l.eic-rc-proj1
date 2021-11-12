@@ -11,4 +11,3 @@ sender: sender.c api.c
 
 clean:
 	rm -rf receiver sender
-

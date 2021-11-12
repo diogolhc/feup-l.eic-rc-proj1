@@ -23,7 +23,7 @@ typedef enum state_set_ua {
 static struct termios oldtio;
 static volatile int g_count = 0;
 
-static unsigned char SET[SET_SIZE] = {
+static const unsigned char SET[SET_SIZE] = {
     FLAG,
     A,
     C_SET,
@@ -31,7 +31,7 @@ static unsigned char SET[SET_SIZE] = {
     FLAG
 };
 
-static unsigned char UA[SET_SIZE] = {
+static const unsigned char UA[SET_SIZE] = {
     FLAG,
     A,
     C_UA,
@@ -183,7 +183,7 @@ int llopen(int porta, type_t type) {
 
     // TODO break into 2?
     switch (type) {
-    case TRANSMITETR:
+    case TRANSMITTER:
         if (setup_alarm() != 0) {
             return 1;
         }

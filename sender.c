@@ -18,9 +18,8 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-
     int porta = atoi(argv[1]);
-    int fd = llopen(porta, TRANSMITETR);
+    int fd = llopen(porta, TRANSMITTER);
 
 
   

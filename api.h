@@ -13,7 +13,7 @@
 
 
 typedef enum type {
-    TRANSMITETR,
+    TRANSMITTER,
     RECEIVER
 } type_t;
 
