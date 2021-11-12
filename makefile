@@ -8,3 +8,6 @@ receiver: receiver.c common.c
 
 sender: sender.c common.c
 	$(CC) $(CFLAGS) -o sender sender.c common.c
+
+clean:
+	rm -rf receiver sender
