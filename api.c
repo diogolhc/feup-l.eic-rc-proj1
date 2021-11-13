@@ -199,7 +199,7 @@ int llopen(int porta, type_t type) {
             alarm(TIME_OUT_TIME);
 
             int timed_out = FALSE;
-            while (!timed_out) {
+            while (!timed_out && state != STOP) {
                 unsigned char byte_read = 0;
 
                 res = read(fd, &byte_read, 1);

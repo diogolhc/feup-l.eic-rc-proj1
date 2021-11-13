@@ -21,11 +21,6 @@ int main(int argc, char** argv) {
     int porta = atoi(argv[1]);
     int fd = llopen(porta, TRANSMITTER);
 
-
-  
-
-
-
     llclose(fd);
     
     return 0;
