@@ -10,8 +10,6 @@
 
 #include "api.h"
 
-
-
 int main(int argc, char** argv) {
     if (argc != 2) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial <i>\n");

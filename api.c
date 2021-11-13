@@ -264,3 +264,29 @@ int llclose(int fd) {
 
     return 0;
 }
+
+int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned char ** out_msg){
+
+    int size_counter = 0;
+
+    *out_msg = malloc(in_msg_size*2);
+
+    unsigned char * out_message = * out_msg;
+
+    for (int i = 0; i < in_msg_size; i++){
+        switch (in_msg[i]){
+            case FLAG:
+                out_message[size_counter++] = ESC;
+                out_message[size_counter++] = FLAG;
+                break;
+            case ESC:
+                out_message[size_counter++] = ESC;
+                out_message[size_counter++] = ESC;
+                break;
+            default:
+                out_message[size_counter++] = in_msg[i];
+                break;
+        }
+    }
+    return size_counter;
+}
