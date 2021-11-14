@@ -10,7 +10,7 @@
 
 #include "api.h"
 
-void main(){
+int main(){
 
     unsigned char in_msg[] = {0x7e, 0x7d};
     unsigned int in_msg_size = 2;
