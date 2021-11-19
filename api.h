@@ -8,7 +8,9 @@
 #define A 0x03
 #define C_SET 0x03
 #define C_UA 0X07
-#define C_I(s) (s << 6)
+#define C_RR(r) (0x05 | ((r) << 7))
+#define C_REJ(r) (0x01 | ((r) << 7))
+#define C_I(s) ((s) << 6)
 #define SET_SIZE 5
 
 #define TMP_BCC1 0x66 // TODO temp value, not sure what this should be
@@ -18,20 +20,22 @@
 
 #define TIME_OUT_TIME 3
 
+typedef enum control_frame_type {
+    SET,
+    DISC,
+    UA,
+    RR,
+    REJ
+}  control_frame_type_t;
 
 typedef enum type {
     TRANSMITTER,
     RECEIVER
 } type_t;
 
-
 int llopen(int porta, type_t type);
 
 int llclose(int fd);
-
-int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg);
-
-char bcc2_builder(char msg[], unsigned int msg_size);
 
 int llwrite(int fd, char * buffer, int length);
 

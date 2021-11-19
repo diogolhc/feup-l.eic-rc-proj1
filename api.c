@@ -36,24 +36,46 @@ typedef enum state_info_rcv {
 static struct termios oldtio;
 static volatile int g_count = 0;
 
-static int Ns = 0; // TODO leave (both) global?
-static int Nr = 0;
+static char S = 0; // TODO leave (both) global?
+static char R = 0;
 
-static const unsigned char SET[SET_SIZE] = {
-    FLAG,
-    A,
-    C_SET,
-    A ^ C_SET,
-    FLAG
-};
+int control_frame_builder(control_frame_type_t cft, char * msg){
 
-static const unsigned char UA[SET_SIZE] = {
-    FLAG,
-    A,
-    C_UA,
-    A ^ C_UA,
-    FLAG
-};
+    msg = malloc(5);
+
+    msg[0] = FLAG; 
+    msg[1] = A;
+    
+    switch (cft)
+    {
+    case SET:
+        msg[2] = C_SET;
+        break;
+    
+    case DISC:
+        break;
+    
+    case UA:
+        msg[2] = C_UA;
+        break;
+
+    case RR:
+        msg[2] = C_RR(R);
+        break;
+
+    case REJ:
+        msg[2] = C_REJ(R);
+        break;
+
+    default:
+        break;
+    }
+
+    msg[3] = msg[1] ^ msg[2];
+    msg[4] = FLAG;
+
+    return 5;
+}
 
 // c is to pass the C used (SET or UA)
 static int update_state_set_ua(unsigned char c, state_set_ua_t *state, unsigned char byte) {
@@ -126,12 +148,12 @@ static int update_state_info_rcv(state_info_rcv_t *state, unsigned char byte){
             break;
 
         case (A_RCV_I):
-            if (C_I(Nr) == byte) *state = C_RCV_I;
+            if (C_I(R) == byte) *state = C_RCV_I;
             else *state = REJ;
             break;
 
         case (C_RCV_I):
-            if (A ^ C_I(Nr)) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
+            if (A ^ C_I(R)) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
             else *state = BCC1_INVALID;
             break;
 
@@ -395,8 +417,8 @@ int llwrite(int fd, char * buffer, int length){
 
     info_msg[0] = FLAG;
     info_msg[1] = A;
-    info_msg[2] = C_I(Ns);
-    info_msg[3] = A ^ C_I(Ns);   
+    info_msg[2] = C_I(S);
+    info_msg[3] = A ^ C_I(S);   
     memcpy(&(info_msg[4]), stuffed_msg, stuffed_msg_len);
     info_msg[total_msg_len-2] = bcc2_builder(stuffed_msg, stuffed_msg_len);
     info_msg[total_msg_len-1] = FLAG;
@@ -417,20 +439,15 @@ int llread(int fd, char * buffer) {
 
     state_info_rcv_t state;
     state = START_I;
-
     char byte_read = 0;
-
     char temp_buffer[512]; // TODO what should the size be?
-
     int res = 0;
-
     int msg_size = 0;
 
     while(state != BCC2_TEST && state != REJ){ //READS message
         res = read(fd, &byte_read, 1);
 
         // TODO guardas e what not
-
 
         update_state_info_rcv(&state, byte_read);
 
@@ -453,16 +470,22 @@ int llread(int fd, char * buffer) {
                 break;
 
             case (REJ):
+                char * rej_msg;
+                int rej_msg_size = control_frame_builder(REJ, rej_msg);
+                write(fd, rej_msg, rej_msg_size);
                 update_state_info_rcv(&state, 0);
                 printf("RES: REJ\n");
                 break;
 
             case (RR):
+                char * rr_msg;
+                R = ((!R) << 7) >> 7;
+                int rr_msg_size = control_frame_builder(RR, rej_msg);
+                write(fd, rej_msg, rej_msg_size);
                 update_state_info_rcv(&state, 0);
                 printf("RES: RR\n");
                 break;
         }
-
     }
 
     buffer = malloc(msg_size);
