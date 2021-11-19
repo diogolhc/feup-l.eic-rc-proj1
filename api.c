@@ -27,7 +27,7 @@ typedef enum state_info_rcv {
     DATA_COLLECTION, //Also BB1_OK
     DESTUFFING,
     BCC2_TEST,
-    BCC2_INVALID,
+    BCC1_INVALID,
     REJ,
     RR,
     STOP_I
@@ -132,7 +132,7 @@ static int update_state_info_rcv(state_info_rcv_t *state, unsigned char byte){
 
         case (C_RCV_I):
             if (byte == TMP_BCC1) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
-            else *state = REJ;
+            else *state = BCC1_INVALID;
             break;
 
         case (DATA_COLLECTION):
@@ -147,10 +147,10 @@ static int update_state_info_rcv(state_info_rcv_t *state, unsigned char byte){
 
         case (BCC2_TEST): 
             if (byte) *state = RR; // TODO byte acts as bool 1 for valid 0 invalid
-            else *state = BCC2_INVALID;
+            else *state = REJ;
             break;
 
-        case (BCC2_INVALID): // TODO should we rather pass the current message and the old message and compare them here instead of outside?
+        case (BCC1_INVALID): // TODO should we rather pass the current message and the old message and compare them here instead of outside?
             if (byte) *state = RR; // TODO if (byte) then it's a repeated msg
             else *state = REJ;
             break;
@@ -352,11 +352,11 @@ int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg){
         switch (in_msg[i]){
             case FLAG:
                 out_message[size_counter++] = ESC;
-                out_message[size_counter++] = FLAG;
+                out_message[size_counter++] = FLAG ^ STUFFER;
                 break;
             case ESC:
                 out_message[size_counter++] = ESC;
-                out_message[size_counter++] = ESC;
+                out_message[size_counter++] = ESC ^ STUFFER;
                 break;
             default:
                 out_message[size_counter++] = in_msg[i];
@@ -364,6 +364,23 @@ int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg){
         }
     }
     return size_counter;
+}
+
+char bcc2_builder(char msg[], unsigned int msg_size){
+
+    if (msg_size == 1) {
+        return msg[0];
+    } else if ( msg_size < 0) {
+        return 0;
+    }
+
+    char ret = msg[0];
+
+    for (int i = 1; i < msg_size; i++){
+        ret ^= msg[i];
+    }
+
+    return ret;
 }
 
 int llwrite(int fd, char * buffer, int length){
@@ -378,8 +395,8 @@ int llwrite(int fd, char * buffer, int length){
 
     info_msg[0] = FLAG;
     info_msg[1] = A;
-    info_msg[2] = Ns << 6;
-    info_msg[3] = TMP_BCC1;
+    info_msg[2] = C_I(Ns);
+    info_msg[3] = A ^ C_I(Ns);   
     memcpy(&(info_msg[4]), stuffed_msg, stuffed_msg_len);
     info_msg[total_msg_len-2] = TMP_BCC2;
     info_msg[total_msg_len-1] = FLAG;
@@ -429,11 +446,6 @@ int llread(int fd, char * buffer) {
 
             case (BCC2_TEST):
                 update_state_info_rcv(&state, temp_buffer[msg_size-2] == TMP_BCC2);
-                break;
-
-            case (BCC2_INVALID):
-                //TODO test if trama is duplicated or not
-                update_state_info_rcv(&state, 0); //always new trama for now
                 break;
 
             case (REJ):
