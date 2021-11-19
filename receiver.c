@@ -21,11 +21,13 @@ int main(int argc, char** argv) {
     
     /// TEST
 
-    char in_msg[512];
+    char *in_msg;
 
     llread(fd, in_msg);
 
     sleep(2);
+
+    //free(in_msg);
 
     /// END
 

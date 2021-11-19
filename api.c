@@ -441,7 +441,7 @@ int llread(int fd, char * buffer) {
         msg_size++;
     }
 
-    char * stuffed_msg = malloc(msg_size - 6 + 1);
+    char * stuffed_msg[msg_size - 6];
 
     while(state != STOP_I){ //TESTS BCC2
 
@@ -453,13 +453,11 @@ int llread(int fd, char * buffer) {
                 break;
 
             case (REJ):
-                // TODO send REJ message
                 update_state_info_rcv(&state, 0);
                 printf("RES: REJ\n");
                 break;
 
             case (RR):
-                // TODO send RR message
                 update_state_info_rcv(&state, 0);
                 printf("RES: RR\n");
                 break;
@@ -467,7 +465,9 @@ int llread(int fd, char * buffer) {
 
     }
 
-    buffer = stuffed_msg;
+    buffer = malloc(msg_size);
 
-    return msg_size - 6;
+    memcpy(buffer, &(temp_buffer[0]), msg_size);
+
+    return msg_size;
 }
