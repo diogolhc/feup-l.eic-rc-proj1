@@ -10,6 +10,9 @@
 #define C_UA 0X07
 #define SET_SIZE 5
 
+#define TMP_BCC1 0x66 // TODO temp value, not sure what this should be
+#define TMP_BCC2 0x77 // TODO same as above
+
 #define TIME_OUT_TIME 3
 
 
@@ -23,4 +26,8 @@ int llopen(int porta, type_t type);
 
 int llclose(int fd);
 
-int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned char ** out_msg);
+int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg);
+
+int llwrite(int fd, char * buffer, int length);
+
+int llread(int fd, char * buffer);

@@ -19,6 +19,16 @@ int main(int argc, char** argv) {
     int porta = atoi(argv[1]);
     int fd = llopen(porta, RECEIVER);
     
+    /// TEST
+
+    char in_msg[512];
+
+    llread(fd, in_msg);
+
+    sleep(2);
+
+    /// END
+
     llclose(fd);
 
     return 0;

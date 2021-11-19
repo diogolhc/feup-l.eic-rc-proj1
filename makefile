@@ -3,6 +3,8 @@ CFLAGS=-Wall
 
 all: receiver sender test
 
+notest: receiver sender
+
 receiver: receiver.c api.c
 	$(CC) $(CFLAGS) -o receiver receiver.c api.c
 

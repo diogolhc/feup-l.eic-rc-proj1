@@ -19,9 +19,25 @@ typedef enum state_set_ua {
     STOP
 } state_set_ua_t;
 
+typedef enum state_info_rcv {
+    START_I,
+    FLAG_RCV_I,
+    A_RCV_I,
+    C_RCV_I,
+    DATA_COLLECTION, //Also BB1_OK
+    DESTUFFING,
+    BCC2_TEST,
+    BCC2_INVALID,
+    REJ,
+    RR,
+    STOP_I
+} state_info_rcv_t;
 
 static struct termios oldtio;
 static volatile int g_count = 0;
+
+static int Ns = 0; // TODO leave (both) global?
+static int Nr = 0;
 
 static const unsigned char SET[SET_SIZE] = {
     FLAG,
@@ -90,6 +106,65 @@ static int update_state_set_ua(unsigned char c, state_set_ua_t *state, unsigned 
     
     case STOP:
         break;
+    }
+
+    return 0;
+}
+
+static int update_state_info_rcv(state_info_rcv_t *state, unsigned char byte){
+    
+    switch (*state){
+
+        case (START_I):
+            if (byte == FLAG) *state = FLAG_RCV_I;
+            else *state = REJ;
+            break;
+
+        case (FLAG_RCV_I):
+            if (byte == A) *state = A_RCV_I;
+            else *state = REJ;
+            break;
+
+        case (A_RCV_I):
+            if (Nr == byte >> 6) *state = C_RCV_I;
+            else *state = REJ;
+            break;
+
+        case (C_RCV_I):
+            if (byte == TMP_BCC1) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
+            else *state = REJ;
+            break;
+
+        case (DATA_COLLECTION):
+            if (byte == FLAG) *state = BCC2_TEST;
+            else if (byte == ESC) *state = DESTUFFING;
+            else *state = DATA_COLLECTION;
+            break;
+
+        case (DESTUFFING):
+            *state = DATA_COLLECTION; // TODO should probably test for FLAG || ESC
+            break;
+
+        case (BCC2_TEST): 
+            if (byte) *state = RR; // TODO byte acts as bool 1 for valid 0 invalid
+            else *state = BCC2_INVALID;
+            break;
+
+        case (BCC2_INVALID): // TODO should we rather pass the current message and the old message and compare them here instead of outside?
+            if (byte) *state = RR; // TODO if (byte) then it's a repeated msg
+            else *state = REJ;
+            break;
+
+        case (REJ): // TODO change r 
+            *state = STOP_I;
+            break;
+
+        case (RR):
+            *state = STOP_I;
+            break;
+
+        default:
+            break;
     }
 
     return 0;
@@ -265,13 +340,13 @@ int llclose(int fd) {
     return 0;
 }
 
-int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned char ** out_msg){
+int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg){
 
     int size_counter = 0;
 
     *out_msg = malloc(in_msg_size*2);
 
-    unsigned char * out_message = * out_msg;
+   char * out_message = * out_msg;
 
     for (int i = 0; i < in_msg_size; i++){
         switch (in_msg[i]){
@@ -289,4 +364,93 @@ int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned 
         }
     }
     return size_counter;
+}
+
+int llwrite(int fd, char * buffer, int length){
+
+    int rcv_nr = 0; // TODO read from the receiver response
+
+    char * stuffed_msg; 
+    int stuffed_msg_len = message_stuffing(buffer, length, &stuffed_msg); //memory is allocated formstuffed_msg, dont forget to free it
+
+    int total_msg_len = stuffed_msg_len + 6;
+    char * info_msg = malloc(total_msg_len); // 6 gotten from { F, A, C, BCC1, D1...DN, BCC2, F}
+
+    info_msg[0] = FLAG;
+    info_msg[1] = A;
+    info_msg[2] = Ns << 6;
+    info_msg[3] = TMP_BCC1;
+    memcpy(&(info_msg[4]), stuffed_msg, stuffed_msg_len);
+    info_msg[total_msg_len-2] = TMP_BCC2;
+    info_msg[total_msg_len-1] = FLAG;
+
+    for (int i = 0; i < total_msg_len; i++){
+        printf("%d: 0x%x\n", i, info_msg[i]);
+    }
+
+    write(fd, info_msg, total_msg_len * sizeof(char));
+
+    free(info_msg);
+    free(stuffed_msg);
+
+    return rcv_nr;
+}
+
+int llread(int fd, char * buffer) {
+
+    state_info_rcv_t state;
+    state = START_I;
+
+    char byte_read = 0;
+
+    char temp_buffer[512]; // TODO what should the size be?
+
+    int res = 0;
+
+    int msg_size = 0;
+
+    while(state != BCC2_TEST && state != REJ){ //READS message
+        res = read(fd, &byte_read, 1);
+
+        // TODO guardas e what not
+
+        update_state_info_rcv(&state, byte_read);
+
+        printf("BYTE: 0x%x; STATE: %d\n", byte_read, state);
+
+        temp_buffer[msg_size] = byte_read;
+
+        msg_size++;
+    }
+
+    while(state != STOP_I){ //TESTS BCC2
+
+        switch(state){
+
+            case (BCC2_TEST):
+                update_state_info_rcv(&state, temp_buffer[msg_size-2] == TMP_BCC2);
+                break;
+
+            case (BCC2_INVALID):
+                //TODO test if trama is duplicated or not
+                update_state_info_rcv(&state, 0); //always new trama for now
+                break;
+
+            case (REJ):
+                // TODO send REJ message
+                update_state_info_rcv(&state, 0);
+                printf("RES: REJ\n");
+                break;
+
+            case (RR):
+                // TODO send RR message
+                update_state_info_rcv(&state, 0);
+                printf("RES: RR\n");
+                break;
+        }
+
+    }
+
+    return res;
+
 }
