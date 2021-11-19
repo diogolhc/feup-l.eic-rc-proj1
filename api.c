@@ -126,12 +126,12 @@ static int update_state_info_rcv(state_info_rcv_t *state, unsigned char byte){
             break;
 
         case (A_RCV_I):
-            if (Nr == byte >> 6) *state = C_RCV_I;
+            if (C_I(Nr) == byte) *state = C_RCV_I;
             else *state = REJ;
             break;
 
         case (C_RCV_I):
-            if (byte == TMP_BCC1) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
+            if (A ^ C_I(Nr)) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
             else *state = BCC1_INVALID;
             break;
 
@@ -398,7 +398,7 @@ int llwrite(int fd, char * buffer, int length){
     info_msg[2] = C_I(Ns);
     info_msg[3] = A ^ C_I(Ns);   
     memcpy(&(info_msg[4]), stuffed_msg, stuffed_msg_len);
-    info_msg[total_msg_len-2] = TMP_BCC2;
+    info_msg[total_msg_len-2] = bcc2_builder(stuffed_msg, stuffed_msg_len);
     info_msg[total_msg_len-1] = FLAG;
 
     for (int i = 0; i < total_msg_len; i++){
@@ -431,6 +431,7 @@ int llread(int fd, char * buffer) {
 
         // TODO guardas e what not
 
+
         update_state_info_rcv(&state, byte_read);
 
         printf("BYTE: 0x%x; STATE: %d\n", byte_read, state);
@@ -440,12 +441,15 @@ int llread(int fd, char * buffer) {
         msg_size++;
     }
 
+    char * stuffed_msg = malloc(msg_size - 6 + 1);
+
     while(state != STOP_I){ //TESTS BCC2
 
         switch(state){
 
             case (BCC2_TEST):
-                update_state_info_rcv(&state, temp_buffer[msg_size-2] == TMP_BCC2);
+                memcpy(stuffed_msg, &(temp_buffer[4]), msg_size-6);
+                update_state_info_rcv(&state, temp_buffer[msg_size-2] == bcc2_builder(stuffed_msg, msg_size - 6));
                 break;
 
             case (REJ):
@@ -463,6 +467,7 @@ int llread(int fd, char * buffer) {
 
     }
 
-    return res;
+    buffer = stuffed_msg;
 
+    return msg_size - 6;
 }
