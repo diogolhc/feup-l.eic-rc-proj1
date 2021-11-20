@@ -65,6 +65,41 @@ static unsigned char* get_control_packet(off_t file_size, char *file_name, int *
     return control_packet;
 }
 
+static int send_packaged_file(int fd_serial_port, int fd_file) {
+    unsigned char *data_packet = malloc(DATA_PACKET_MAX_SIZE);
+    if (data_packet == NULL) {
+        return -1;
+    }
+
+    unsigned char sequence_number = 0;
+    data_packet[0] = C_DATA;
+
+    while (1) {
+        data_packet[1] = sequence_number;
+        sequence_number = (sequence_number+1) % 255;
+        
+        ssize_t num = read(fd_file, &data_packet[4], DATA_PACKET_MAX_SIZE-4);
+
+        if (num == -1) {
+            free(data_packet);
+            return -1;
+        } else if (num == 0) {
+            break;
+        } else {
+            data_packet[2] = L2(num);
+            data_packet[3] = L1(num);
+
+            if (llwrite(fd_serial_port, data_packet, num+4) < 0) {
+                free(data_packet);
+                return -1;
+            }
+        }
+    }
+    
+    free(data_packet);
+    return 0;
+}
+
 // name_to_give must be a small string (like <100 bytes) define later
 int send_file(int porta, char *path, int path_size, char *name_to_give) {
     int fd_file;
@@ -100,8 +135,12 @@ int send_file(int porta, char *path, int path_size, char *name_to_give) {
         return -1;
     }
 
-    // TODO send file in packets
-    // def function for that
+    if (send_packaged_file(fd_serial_port, fd_file) != 0) {
+        free(control_packet);
+        close(fd_file);
+        llclose(fd_serial_port);
+        return -1;
+    }
 
     // Control packet end
     control_packet[0] = C_END;
