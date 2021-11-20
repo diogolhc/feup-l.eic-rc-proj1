@@ -1,25 +1,20 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
-#include "api.h"
+#include "aplic.h"
 
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        printf("Usage:\tnserial SerialPort\n\tex: nserial <i>\n");
-        exit(1);
+        printf("Usage:\treceiver SerialPort\n\tex: nserial <i>\n");
+        return -1;
     }
 
     int porta = atoi(argv[1]);
-    int fd = llopen(porta, RECEIVER);
     
-    llclose(fd);
+    if (receive_file(porta) < 0 ) {
+        return -1;
+    }
 
     return 0;
 }

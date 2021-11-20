@@ -39,7 +39,7 @@ static const unsigned char UA[SET_SIZE] = {
     FLAG
 };
 
-// c is to pass the C used (SET or UA)
+// c is to pass the C used (SET / DISC / UA / RR / REJ)
 static int update_state_set_ua(unsigned char c, state_set_ua_t *state, unsigned char byte) {
     if (state == NULL) {
         return 1;
@@ -275,7 +275,7 @@ int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned 
             case FLAG: case ESC:
                 out_message[size_counter++] = ESC;
             default:
-                out_message[size_counter++] = in_msg[i];
+                out_message[size_counter++] = in_msg[i]; // ^ 0x20;
                 break;
         }
     }

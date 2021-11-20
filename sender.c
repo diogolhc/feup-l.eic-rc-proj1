@@ -1,25 +1,21 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 
-#include "api.h"
+#include "aplic.h"
+
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        printf("Usage:\tnserial SerialPort\n\tex: nserial <i>\n");
-        exit(1);
+    if (argc != 3) {
+        printf("Usage:\tsender SerialPort Path\n\tex: nserial <i> <path>\n");
+        return -1;
     }
 
     int porta = atoi(argv[1]);
-    int fd = llopen(porta, TRANSMITTER);
-
-    llclose(fd);
+    
+    if (send_file(porta, argv[2], strlen(argv[2])) < 0) {
+        return -1;
+    }
     
     return 0;
 }
