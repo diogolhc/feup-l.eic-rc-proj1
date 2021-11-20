@@ -26,4 +26,8 @@ int llopen(int porta, type_t type);
 
 int llclose(int fd);
 
+int llwrite(int fd, char *buffer, int length);
+
+int llread(int fd, char *buffer);
+
 int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned char ** out_msg);
