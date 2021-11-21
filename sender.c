@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 
     llwrite(fd, in_msg, in_msg_size);
 
-    sleep(2);
+    sleep(5);
 
     /// END
 

@@ -24,6 +24,7 @@ int main(int argc, char** argv) {
     char *in_msg;
 
     llread(fd, in_msg);
+    llread(fd, in_msg);
 
     sleep(2);
 
