@@ -486,12 +486,6 @@ int llwrite(int fd, char * buffer, int length){
 
     setup_alarm();
 
-    /// ----------------------  CORRUPTION TESTING  ----------------------
-
-    int corrupt = 1;
-
-    /// ----------------------         END          ----------------------
-
     while(!write_successful) { //TODO set-up time-out
  
         for (int i = 0; i < total_msg_len; i++){
@@ -500,12 +494,7 @@ int llwrite(int fd, char * buffer, int length){
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        if (corrupt){
-            write(fd, info_msg, 5 * sizeof(char));
-            corrupt = 0;
-        } else {
-            write(fd, info_msg, total_msg_len * sizeof(char));
-        }
+        write(fd, info_msg, total_msg_len * sizeof(char));
 
         printf("----- TASK: DONE\n");
 
