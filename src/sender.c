@@ -16,6 +16,6 @@ int main(int argc, char** argv) {
     if (send_file(porta, argv[2], strlen(argv[2]), argv[3]) < 0) {
         return -1;
     }
-    printf("hello\n");
+
     return 0;
 }

@@ -175,7 +175,7 @@ int receive_file(int porta) {
     }
 
     int fd_file_to_write = -1;
-    int sequence_number = 0;
+    //int sequence_number = 0; TODO use this
     off_t file_size = 0;
 
     int not_end_packet = TRUE;
@@ -194,7 +194,7 @@ int receive_file(int porta) {
                 break;
             }
 
-            int N = packet[1]; // TODO what to do if N doesn't check out with previous+1? since it's not supposed to check for errors in application layer...
+            // int N = packet[1]; // TODO what to do if N doesn't check out with previous+1? since it's not supposed to check for errors in application layer...
 
             // if N == sequence_number before, ignores current packet,
             // but what if there is like a sequence_number before + 2?
