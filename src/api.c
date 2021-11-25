@@ -454,6 +454,25 @@ int message_stuffing(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out_
     return size_counter;
 }
 
+int message_destuffer(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out_msg){
+
+    int size_counter = 0;
+    *out_msg = malloc(in_msg_size);
+
+    uint8_t * out_message = * out_msg;
+
+    for (int i = 0; i < in_msg_size; i++){
+        if (in_msg[i] == ESC){
+            out_msg[size_counter] = (in_msg[++i] ^ STUFFER);
+        } else {
+            out_msg[size_counter] = in_msg[i];
+        }
+        size_counter++;
+    }
+
+    return size_counter;
+}
+
 uint8_t bcc2_builder(uint8_t msg[], unsigned int msg_size){
 
     if (msg_size == 1) {
@@ -613,11 +632,14 @@ int llread(int fd, uint8_t *buffer) {
         msg_size = 0;
     }
 
-    buffer = malloc(msg_size);
+    char * destuffed_message;
 
-    memcpy(buffer, &(temp_buffer[0]), msg_size);
+    int destuffed_msg_size = message_destuffer(temp_buffer, msg_size - 2, destuffed_message);
+
+    memcpy(buffer, destuffed_message, destuffed_msg_size);
 
     free(stuffed_msg);
+    free(destuffed_message);
 
     return msg_size;
 }
