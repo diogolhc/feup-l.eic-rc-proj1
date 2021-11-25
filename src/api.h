@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
@@ -43,6 +45,6 @@ int llopen(int porta, type_t type);
 
 int llclose(int fd);
 
-int llwrite(int fd, char *buffer, int length);
+int llwrite(int fd, uint8_t *buffer, int length);
 
-int llread(int fd, char *buffer);
+int llread(int fd, uint8_t *buffer);

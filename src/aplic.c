@@ -9,6 +9,7 @@
 #include <strings.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #define CONTROL_PACKET_MAX_SIZE 500 // TODO check if good
 #define PACKET_MAX_SIZE (CONTROL_PACKET_MAX_SIZE > DATA_PACKET_MAX_SIZE ? CONTROL_PACKET_MAX_SIZE : DATA_PACKET_MAX_SIZE)
@@ -39,8 +40,8 @@ static off_t get_file_size(int fd) {
     return s.st_size;
 }
 
-static unsigned char* get_control_packet(off_t file_size, char *file_name, int file_name_size, int *length) {
-    unsigned char* control_packet = malloc(CONTROL_PACKET_MAX_SIZE);
+static uint8_t* get_control_packet(off_t file_size, char *file_name, int file_name_size, int *length) {
+    uint8_t* control_packet = malloc(CONTROL_PACKET_MAX_SIZE);
     if (control_packet == NULL) {
         return NULL;
     }
@@ -56,7 +57,7 @@ static unsigned char* get_control_packet(off_t file_size, char *file_name, int f
 
     control_packet[i++] = T_FILE_NAME; // T2
 
-    control_packet[i++] = (unsigned char)file_name_size; // L2
+    control_packet[i++] = (uint8_t)file_name_size; // L2
 
     memcpy(&control_packet[i], file_name, file_name_size); // V2
 
@@ -65,12 +66,12 @@ static unsigned char* get_control_packet(off_t file_size, char *file_name, int f
 }
 
 static int send_packaged_file(int fd_serial_port, int fd_file) {
-    unsigned char *data_packet = malloc(DATA_PACKET_MAX_SIZE);
+    uint8_t *data_packet = malloc(DATA_PACKET_MAX_SIZE);
     if (data_packet == NULL) {
         return -1;
     }
 
-    unsigned char sequence_number = 0;
+    uint8_t sequence_number = 0;
     data_packet[0] = C_DATA;
 
     while (1) {
@@ -123,7 +124,7 @@ int send_file(int porta, char *path, int path_size, char *file_name) {
         return -1;
     }
 
-    unsigned char* control_packet = NULL;
+    uint8_t* control_packet = NULL;
     int control_packet_size = 0;
     if ((control_packet = get_control_packet(file_size, file_name, file_name_size, &control_packet_size)) == NULL) {
         close(fd_file);
@@ -167,7 +168,7 @@ int receive_file(int porta) {
         return -1;
     }
 
-    unsigned char *packet = malloc(PACKET_MAX_SIZE);
+    uint8_t *packet = malloc(PACKET_MAX_SIZE);
     if (packet == NULL) {
         llclose(fd_serial_port);
         return -1;
@@ -186,7 +187,7 @@ int receive_file(int porta) {
             return -1;
         }
 
-        unsigned char control_field = packet[0];
+        uint8_t control_field = packet[0];
         switch (control_field) {
         case C_DATA:
             if (fd_file_to_write == -1) { // Control start packet didn't arrive yet
@@ -212,8 +213,8 @@ int receive_file(int porta) {
         case C_START:;
             int i = 1;
             while (i < packet_size) {
-                unsigned char T = packet[i++];
-                unsigned char L = packet[i++];
+                uint8_t T = packet[i++];
+                uint8_t L = packet[i++];
 
                 if (T == T_FILE_SIZE) {
                     memcpy(&file_size, &packet[i], L);

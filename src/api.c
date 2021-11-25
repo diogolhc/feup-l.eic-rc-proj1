@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdint.h>
 
 typedef enum state_sv_frame {
     START,
@@ -38,10 +39,10 @@ typedef enum state_info_rcv {
 static struct termios oldtio;
 static volatile int g_count = 0;
 
-static char S = 0;
-static char R = 0;
+static uint8_t S = 0;
+static uint8_t R = 0;
 
-int control_frame_builder(control_frame_type_t cft, char ** msg){
+int control_frame_builder(control_frame_type_t cft, uint8_t ** msg){
 
     *msg = malloc(5);
 
@@ -80,7 +81,7 @@ int control_frame_builder(control_frame_type_t cft, char ** msg){
 }
 
 // c is to pass the C used (SET or UA)
-static int update_state_rr_rej(state_sv_frame_t *state, unsigned char byte) { //TODO not else *state = START ; compare with falg
+static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) { //TODO not else *state = START ; compare with falg
 //TODO this state machine can also work for ua_set
     if (state == NULL) {
         return 1;
@@ -128,7 +129,7 @@ static int update_state_rr_rej(state_sv_frame_t *state, unsigned char byte) { //
     return 0;
 }
 
-static int update_state_set_ua(unsigned char c, state_sv_frame_t *state, unsigned char byte) {
+static int update_state_set_ua(uint8_t c, state_sv_frame_t *state, uint8_t byte) {
     if (state == NULL) {
         return 1;
     }
@@ -183,7 +184,7 @@ static int update_state_set_ua(unsigned char c, state_sv_frame_t *state, unsigne
     return 0;
 }
 
-static int update_state_info_rcv(state_info_rcv_t *state, unsigned char byte){
+static int update_state_info_rcv(state_info_rcv_t *state, uint8_t byte){
     
     switch (*state){
 
@@ -332,10 +333,10 @@ int llopen(int porta, type_t type) {
 
     printf("%d opened fd\n", fd);
 
-    char * set;
+    uint8_t * set;
     control_frame_builder(SET, &set);
 
-    char * ua;
+    uint8_t * ua;
     control_frame_builder(UA, &ua);
 
     // TODO break into 2?
@@ -350,14 +351,14 @@ int llopen(int porta, type_t type) {
         while (g_count < 3 && !ua_received) {
             state = START; // TODO should the state reset every time? or mantain after sending other SET?
 
-            res = write(fd, set, SET_SIZE * sizeof(unsigned char));   
+            res = write(fd, set, SET_SIZE * sizeof(uint8_t));   
             printf("%d bytes written\n", res);
 
             alarm(TIME_OUT_TIME);
 
             int timed_out = FALSE;
             while (!timed_out && state != STOP) {
-                unsigned char byte_read = 0;
+                uint8_t byte_read = 0;
 
                 res = read(fd, &byte_read, 1);
                 if (res == 1) {
@@ -386,7 +387,7 @@ int llopen(int porta, type_t type) {
         // TODO should the receiver also time out?
         state = START;
         while (state != STOP) {
-            unsigned char byte_read = 0;
+            uint8_t byte_read = 0;
             res = read(fd, &byte_read, 1);
 
             if (res == 1) {
@@ -422,12 +423,12 @@ int llclose(int fd) {
     return 0;
 }
 
-int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg){
+int message_stuffing(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out_msg){
 
     int size_counter = 0;
     *out_msg = malloc(in_msg_size*2);
 
-   char * out_message = * out_msg;
+   uint8_t * out_message = * out_msg;
 
     for (int i = 0; i < in_msg_size; i++){
         switch (in_msg[i]){
@@ -447,7 +448,7 @@ int message_stuffing(char in_msg[], unsigned int in_msg_size, char ** out_msg){
     return size_counter;
 }
 
-char bcc2_builder(char msg[], unsigned int msg_size){
+uint8_t bcc2_builder(uint8_t msg[], unsigned int msg_size){
 
     if (msg_size == 1) {
         return msg[0];
@@ -455,7 +456,7 @@ char bcc2_builder(char msg[], unsigned int msg_size){
         return 0;
     }
 
-    char ret = msg[0];
+    uint8_t ret = msg[0];
 
     for (int i = 1; i < msg_size; i++){
         ret ^= msg[i];
@@ -464,16 +465,16 @@ char bcc2_builder(char msg[], unsigned int msg_size){
     return ret;
 }
 
-int llwrite(int fd, char * buffer, int length){
+int llwrite(int fd, uint8_t * buffer, int length){
 
     int write_successful = 0;
 
     int rcv_nr = 0; // TODO read from the receiver response
 
-    char * stuffed_msg; 
+    uint8_t * stuffed_msg; 
     int stuffed_msg_len = message_stuffing(buffer, length, &stuffed_msg); //memory is allocated formstuffed_msg, dont forget to free it
     int total_msg_len = stuffed_msg_len + 6;
-    char * info_msg = malloc(total_msg_len); // 6 gotten from { F, A, C, BCC1, D1...DN, BCC2, F}
+    uint8_t * info_msg = malloc(total_msg_len); // 6 gotten from { F, A, C, BCC1, D1...DN, BCC2, F}
 
     info_msg[0] = FLAG;
     info_msg[1] = A;
@@ -493,11 +494,11 @@ int llwrite(int fd, char * buffer, int length){
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        write(fd, info_msg, total_msg_len * sizeof(char));
+        write(fd, info_msg, total_msg_len * sizeof(uint8_t));
 
         printf("----- TASK: DONE\n");
 
-        char byte_read = 0;
+        uint8_t byte_read = 0;
         int res = 0;
         state_sv_frame_t state = START;
 
@@ -534,17 +535,17 @@ int llwrite(int fd, char * buffer, int length){
     return rcv_nr;
 }
 
-int llread(int fd, char * buffer) {
+int llread(int fd, uint8_t * buffer) {
 
     state_info_rcv_t state;
-    char byte_read = 0;
-    char temp_buffer[512]; // TODO what should the size be?
-    int res = 0;
+    uint8_t byte_read = 0;
+    uint8_t temp_buffer[512]; // TODO what should the size be?
+    int res = 0; // TODO não esta a dar return disto pq?
     int msg_size = 0;
 
     int read_successful = 0;
 
-    char *stuffed_msg;
+    uint8_t *stuffed_msg;
 
     while (!read_successful){
 
@@ -567,8 +568,8 @@ int llread(int fd, char * buffer) {
         printf("here state:%d\n", msg_size);
         if (msg_size>=2) stuffed_msg = malloc(msg_size - 2);
 
-        char ** rej_msg;
-        char ** rr_msg;
+        uint8_t ** rej_msg = NULL;
+        uint8_t ** rr_msg = NULL;
         int rej_msg_size;
         int rr_msg_size;
 
@@ -581,7 +582,7 @@ int llread(int fd, char * buffer) {
                     break;
 
                 case (REJ_I):
-                    rej_msg_size = control_frame_builder(REJ, &rej_msg);
+                    rej_msg_size = control_frame_builder(REJ, rej_msg);
                     tcflush(fd, TCIOFLUSH);
                     write(fd, rej_msg, rej_msg_size);
                     update_state_info_rcv(&state, 0);
@@ -592,7 +593,7 @@ int llread(int fd, char * buffer) {
                     read_successful = 1;
                     R = ((!R) << 7) >> 7;
                     printf("R: 0x%x; C_I(R): 0x%x\n", R, C_I(R));
-                    rr_msg_size = control_frame_builder(RR, &rr_msg);
+                    rr_msg_size = control_frame_builder(RR, rr_msg);
                     write(fd, rr_msg, rr_msg_size);
                     update_state_info_rcv(&state, 0);
                     printf("RES: RR\n");

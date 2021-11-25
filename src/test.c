@@ -11,9 +11,11 @@
 #include "api.h"
 
 int main(){
-
-    unsigned char in_msg[] = {0x7e, 0x7d};
+    /*
+    uint8_t in_msg[] = {0x7e, 0x7d};
     unsigned int in_msg_size = 2;
 
     llwrite(NULL, in_msg, in_msg_size);
+    */
+    return 0;
 }
