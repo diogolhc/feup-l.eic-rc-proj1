@@ -21,14 +21,10 @@ int main(int argc, char** argv) {
 
     /// TEST
 
-    sleep(1);
-
-    char in_msg[] = {0x7e, 0x7d};
-    unsigned int in_msg_size = 2;
+    char in_msg[] = {0x72, 0x7e, 0x7d};
+    unsigned int in_msg_size = 3;
 
     llwrite(fd, in_msg, in_msg_size);
-
-    sleep(5);
 
     /// END
 
