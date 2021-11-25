@@ -121,6 +121,10 @@ static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) { //TODO n
         
         case STOP:
             break;
+
+        default:
+            printf("ERROR: not supposed to reach this");
+            break;
     }
 
     return 0;
@@ -132,52 +136,57 @@ static int update_state_set_ua(uint8_t c, state_sv_frame_t *state, uint8_t byte)
     }
 
     switch (*state) {
-    case START:
-        if (byte == FLAG) {
-            *state = FLAG_RCV;
-        }
-        break;
-    
-    case FLAG_RCV:
-        if (byte == A) {
-            *state = A_RCV;
-        } else if (byte != FLAG) {
-            *state = START;
-        }
-        break;
-    
-    case A_RCV:
-        if (byte == c) {
-            *state = C_RCV;
-        } else if (byte == FLAG) {
-            *state = FLAG_RCV;
-        } else {
-            *state = START;
-        }
-        break;
+        case START:
+            if (byte == FLAG) {
+                *state = FLAG_RCV;
+            }
+            break;
+        
+        case FLAG_RCV:
+            if (byte == A) {
+                *state = A_RCV;
+            } else if (byte != FLAG) {
+                *state = START;
+            }
+            break;
+        
+        case A_RCV:
+            if (byte == c) {
+                *state = C_RCV;
+            } else if (byte == FLAG) {
+                *state = FLAG_RCV;
+            } else {
+                *state = START;
+            }
+            break;
 
-    case C_RCV:
-        if (byte == (A^c)) {
-            *state = BCC_OK;
-        } else if (byte == FLAG) {
-            *state = FLAG_RCV;
-        } else {
-            *state = START;
-        }
-        break;
+        case C_RCV:
+            if (byte == (A^c)) {
+                *state = BCC_OK;
+            } else if (byte == FLAG) {
+                *state = FLAG_RCV;
+            } else {
+                *state = START;
+            }
+            break;
 
-    case BCC_OK:
-        if (byte == FLAG) {
-            *state = STOP;
-        } else {
-            *state = START;
-        }
-        break;
-    
-    case STOP:
-        break;
+        case BCC_OK:
+            if (byte == FLAG) {
+                *state = STOP;
+            } else {
+                *state = START;
+            }
+            break;
+        
+        case STOP:
+            break;
+            
+        default:
+            printf("ERROR: not supposed to reach this");
+            break;
     }
 
+    
     return 0;
 }
 
@@ -537,7 +546,6 @@ int llread(int fd, uint8_t *buffer) {
     state_info_rcv_t state;
     uint8_t byte_read = 0;
     uint8_t temp_buffer[512]; // TODO what should the size be?
-    int res = 0; // TODO não esta a dar return disto pq?
     int msg_size = 0;
 
     int read_successful = 0;
@@ -549,13 +557,13 @@ int llread(int fd, uint8_t *buffer) {
         state = START_I;
 
         while(state != DATA_COLLECTION && state != REJ_I){ //READS message
-            res = read(fd, &byte_read, 1);
+            read(fd, &byte_read, 1);
             update_state_info_rcv(&state, byte_read);
             printf("CC BYTE: 0x%x; STATE: %d\n", byte_read, state);
         }
 
         while(state != BCC2_TEST && state != REJ_I) {
-            res = read(fd, &byte_read, 1);
+            read(fd, &byte_read, 1);
             update_state_info_rcv(&state, byte_read);
             printf("DC BYTE: 0x%x; STATE: %d\n", byte_read, state);
             temp_buffer[msg_size] = byte_read;
@@ -594,6 +602,10 @@ int llread(int fd, uint8_t *buffer) {
                     write(fd, rr_msg, rr_msg_size);
                     update_state_info_rcv(&state, 0);
                     printf("RES: RR\n");
+                    break;
+
+                default:
+                    printf("ERROR: not supposed to reach this");
                     break;
             }
         }
