@@ -574,6 +574,7 @@ int llread(int fd, uint8_t *buffer) {
     while (!read_successful){
 
         state = START_I;
+        msg_size = 0;
 
         while(state != DATA_COLLECTION && state != REJ_I){ //READS message
             read(fd, &byte_read, 1);
@@ -629,7 +630,7 @@ int llread(int fd, uint8_t *buffer) {
             }
         }
 
-        msg_size = 0;
+        
     }
 
     uint8_t * destuffed_message = NULL;
