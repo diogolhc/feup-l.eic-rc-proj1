@@ -463,9 +463,9 @@ int message_destuffer(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out
 
     for (int i = 0; i < in_msg_size; i++){
         if (in_msg[i] == ESC){
-            out_msg[size_counter] = (in_msg[++i] ^ STUFFER);
+            out_message[size_counter] = (in_msg[++i] ^ STUFFER);
         } else {
-            out_msg[size_counter] = in_msg[i];
+            out_message[size_counter] = in_msg[i];
         }
         size_counter++;
     }
@@ -632,9 +632,9 @@ int llread(int fd, uint8_t *buffer) {
         msg_size = 0;
     }
 
-    char * destuffed_message;
+    uint8_t * destuffed_message = NULL;
 
-    int destuffed_msg_size = message_destuffer(temp_buffer, msg_size - 2, destuffed_message);
+    int destuffed_msg_size = message_destuffer(temp_buffer, msg_size - 2, &destuffed_message);
 
     memcpy(buffer, destuffed_message, destuffed_msg_size);
 
