@@ -3,6 +3,8 @@ CFLAGS=-Wall -g -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
 
 all: receiver sender test
 
+notest: receiver sender
+
 receiver: src/receiver.c src/api.c src/aplic.c
 	$(CC) $(CFLAGS) -o receiver src/receiver.c src/api.c src/aplic.c
 

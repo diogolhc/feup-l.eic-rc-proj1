@@ -9,21 +9,37 @@
 #define C_SET 0x03
 #define C_DISC 0x0B
 #define C_UA 0X07
-#define C_RR(Nr)  ((Nr << 7) | 0b101)
-#define C_REJ(Nr) ((Nr << 7) | 0b1)
+
+#define C_RR(r) (0x05 | (((r) << 7) & 0x40))
+#define C_REJ(r) (0x01 | (((r) << 7) & 0x40))
+#define C_I(s) ((s) << 6)
+
 #define SET_SIZE 5
+
+#define TMP_BCC1 0x66 // TODO temp value, not sure what this should be
+#define TMP_BCC2 0x77 // TODO same as above
+
+#define STUFFER 0x20
 
 #define TIME_OUT_TIME 3
 
+typedef enum control_frame_type {
+    SET,
+    DISC,
+    UA,
+    RR,
+    REJ
+}  control_frame_type_t;
 
 typedef enum type {
     TRANSMITTER,
     RECEIVER
 } type_t;
 
-
 int llopen(int porta, type_t type);
 
 int llclose(int fd);
 
-int message_stuffing(unsigned char in_msg[], unsigned int in_msg_size, unsigned char ** out_msg);
+int llwrite(int fd, char * buffer, int length);
+
+int llread(int fd, char * buffer);
