@@ -61,7 +61,7 @@ int control_frame_builder(control_frame_type_t cft, char ** msg){
         (*msg)[2] = C_UA;
         break;
 
-    case RR:
+    case RR: 
         (*msg)[2] = C_RR(R);
         break;
 

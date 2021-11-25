@@ -10,8 +10,8 @@
 #define C_DISC 0x0B
 #define C_UA 0X07
 
-#define C_RR(r) (0x05 | (((r) << 7) & 0x40))
-#define C_REJ(r) (0x01 | (((r) << 7) & 0x40))
+#define C_RR(r) (0x05 | (((r) << 7) & 0x80))
+#define C_REJ(r) (0x01 | (((r) << 7) & 0x80))
 #define C_I(s) ((s) << 6)
 
 #define SET_SIZE 5
