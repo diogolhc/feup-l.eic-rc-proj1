@@ -1,2 +1,6 @@
 S em função de a
 S em função de FER
+
+ASK:
+    -Na aula disse para usar unsigned char, mas as assinaturas de ll... usam char só
+    e dá origem a muitos warnings. Podemos alterar as assianaturas para usar unsigned char* ?

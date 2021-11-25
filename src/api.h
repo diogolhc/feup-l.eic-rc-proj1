@@ -23,6 +23,9 @@
 
 #define TIME_OUT_TIME 3
 
+#define DATA_PACKET_MAX_SIZE 1000 // TODO define a good number 
+
+
 typedef enum control_frame_type {
     SET,
     DISC,
@@ -40,6 +43,6 @@ int llopen(int porta, type_t type);
 
 int llclose(int fd);
 
-int llwrite(int fd, char * buffer, int length);
+int llwrite(int fd, char *buffer, int length);
 
-int llread(int fd, char * buffer);
+int llread(int fd, char *buffer);
