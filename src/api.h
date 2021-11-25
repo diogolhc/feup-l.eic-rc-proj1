@@ -16,7 +16,7 @@
 #define C_REJ(r) (0x01 | (((r) << 7) & 0x80))
 #define C_I(s) ((s) << 6)
 
-#define SET_SIZE 5
+#define CONTROL_SIZE 5
 
 #define TMP_BCC1 0x66 // TODO temp value, not sure what this should be
 #define TMP_BCC2 0x77 // TODO same as above

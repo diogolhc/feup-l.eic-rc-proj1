@@ -42,40 +42,37 @@ static volatile int g_count = 0;
 static uint8_t S = 0;
 static uint8_t R = 0;
 
-int control_frame_builder(control_frame_type_t cft, uint8_t ** msg){
-
-    *msg = malloc(5);
-
-    (*msg)[0] = FLAG; 
-    (*msg)[1] = A;
+int control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
+    msg[0] = FLAG; 
+    msg[1] = A;
     
     switch (cft)
     {
     case SET:
-        (*msg)[2] = C_SET;
+        msg[2] = C_SET;
         break;
     
     case DISC:
         break;
     
     case UA:
-        (*msg)[2] = C_UA;
+        msg[2] = C_UA;
         break;
 
     case RR: 
-        (*msg)[2] = C_RR(R);
+        msg[2] = C_RR(R);
         break;
 
     case REJ:
-        (*msg)[2] = C_REJ(R);
+        msg[2] = C_REJ(R);
         break;
 
     default:
         break;
     }
 
-    (*msg)[3] = (*msg)[1] ^ (*msg)[2];
-    (*msg)[4] = FLAG;
+    msg[3] = msg[1] ^ msg[2];
+    msg[4] = FLAG;
 
     return 5;
 }
@@ -333,11 +330,11 @@ int llopen(int porta, type_t type) {
 
     printf("%d opened fd\n", fd);
 
-    uint8_t *set = NULL;
-    control_frame_builder(SET, &set);
+    uint8_t set[CONTROL_SIZE];
+    control_frame_builder(SET, set);
 
-    uint8_t *ua = NULL;
-    control_frame_builder(UA, &ua);
+    uint8_t ua[CONTROL_SIZE];
+    control_frame_builder(UA, ua);
 
     // TODO break into 2?
     switch (type) {
@@ -351,7 +348,7 @@ int llopen(int porta, type_t type) {
         while (g_count < 3 && !ua_received) {
             state = START; // TODO should the state reset every time? or mantain after sending other SET?
 
-            res = write(fd, set, SET_SIZE * sizeof(uint8_t));   
+            res = write(fd, set, CONTROL_SIZE * sizeof(uint8_t));   
             printf("%d bytes written\n", res);
 
             alarm(TIME_OUT_TIME);
@@ -568,8 +565,8 @@ int llread(int fd, uint8_t *buffer) {
         printf("here state:%d\n", msg_size);
         if (msg_size>=2) stuffed_msg = malloc(msg_size - 2);
 
-        uint8_t *rej_msg = NULL;
-        uint8_t *rr_msg = NULL;
+        uint8_t rej_msg[CONTROL_SIZE];
+        uint8_t rr_msg[CONTROL_SIZE];
         int rej_msg_size;
         int rr_msg_size;
 
@@ -582,7 +579,7 @@ int llread(int fd, uint8_t *buffer) {
                     break;
 
                 case (REJ_I):
-                    rej_msg_size = control_frame_builder(REJ, &rej_msg);
+                    rej_msg_size = control_frame_builder(REJ, rej_msg);
                     tcflush(fd, TCIOFLUSH);
                     write(fd, rej_msg, rej_msg_size);
                     update_state_info_rcv(&state, 0);
@@ -593,7 +590,7 @@ int llread(int fd, uint8_t *buffer) {
                     read_successful = 1;
                     R = ((!R) << 7) >> 7;
                     printf("R: 0x%x; C_I(R): 0x%x\n", R, C_I(R));
-                    rr_msg_size = control_frame_builder(RR, &rr_msg);
+                    rr_msg_size = control_frame_builder(RR, rr_msg);
                     write(fd, rr_msg, rr_msg_size);
                     update_state_info_rcv(&state, 0);
                     printf("RES: RR\n");
