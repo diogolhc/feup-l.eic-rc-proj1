@@ -496,37 +496,34 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
     int rcv_nr = 0; // TODO read from the receiver response
 
+    uint8_t bcc2 = bcc2_builder(buffer, length);
+    uint8_t unstuffed_msg[length+1];
+    memcpy(unstuffed_msg, buffer, length);
+    unstuffed_msg[length] = bcc2;
     uint8_t *stuffed_msg = NULL; 
-    int stuffed_msg_len = message_stuffing(buffer, length, &stuffed_msg); //memory is allocated formstuffed_msg, dont forget to free it
-    int total_msg_len = stuffed_msg_len + 6;
+    int stuffed_msg_len = message_stuffing(unstuffed_msg, length+1, &stuffed_msg); //memory is allocated formstuffed_msg, dont forget to free it
+    int total_msg_len = stuffed_msg_len + 5;
     uint8_t *info_msg = malloc(total_msg_len); // 6 gotten from { F, A, C, BCC1, D1...DN, BCC2, F}
 
+    
     info_msg[0] = FLAG;
     info_msg[1] = A;
     info_msg[2] = C_I(S);
-    info_msg[3] = A ^ C_I(S);   
+    info_msg[3] = A ^ C_I(S);
     memcpy(&(info_msg[4]), stuffed_msg, stuffed_msg_len);
-    info_msg[total_msg_len-2] = bcc2_builder(stuffed_msg, stuffed_msg_len);
     info_msg[total_msg_len-1] = FLAG;
-
-    int corrupt = 1;
 
     setup_alarm();
 
     while(!write_successful) { //TODO set-up time-out
- 
+
         for (int i = 0; i < total_msg_len; i++){
             printf("%d: 0x%x\n", i, info_msg[i]);
         }
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        if (!corrupt) {
-            write(fd, info_msg, total_msg_len * sizeof(uint8_t));
-        } else {
-            write(fd, info_msg, (total_msg_len * sizeof(uint8_t))/2);
-            corrupt = 0;
-        }
+        write(fd, info_msg, total_msg_len * sizeof(uint8_t));
 
         printf("----- TASK: DONE\n");
 
@@ -571,12 +568,13 @@ int llread(int fd, uint8_t *buffer) {
 
     state_info_rcv_t state;
     uint8_t byte_read = 0;
-    uint8_t temp_buffer[512]; // TODO what should the size be?
+    uint8_t temp_buffer[1024]; // TODO what should the size be?
     int msg_size = 0;
 
     int read_successful = 0;
 
-    uint8_t *stuffed_msg = NULL;
+    uint8_t *unstuffed_msg = NULL;
+    int unstuffed_size = 0;
 
     while (!read_successful){
 
@@ -597,22 +595,23 @@ int llread(int fd, uint8_t *buffer) {
             msg_size++;
         }
 
-        if (msg_size>=2) stuffed_msg = malloc(msg_size - 2);
-
         uint8_t rej_msg[CONTROL_SIZE];
         uint8_t rr_msg[CONTROL_SIZE];
         int rej_msg_size;
         int rr_msg_size;
 
+        unstuffed_size = 0;
+
         while(state != STOP_I){ //TESTS BCC2
 
-            printf("ED; STATE: %d ; ", byte_read, state);
+            printf("ED; STATE: %d ; ", state);
 
             switch(state){
                 case (BCC2_TEST):
-                    memcpy(stuffed_msg, temp_buffer, msg_size-2);
-                    printf("BCC2_RCV: 0x%x ; BCC2_CMP: 0x%x\n", temp_buffer[msg_size-2], bcc2_builder(stuffed_msg, msg_size - 2));
-                    update_state_info_rcv(&state, temp_buffer[msg_size-2] == bcc2_builder(stuffed_msg, msg_size - 2));
+                    free(unstuffed_msg);
+                    unstuffed_size = message_destuffer(temp_buffer, msg_size-1, &unstuffed_msg);
+                    printf("BCC2_RCV: 0x%x ; BCC2_CMP: 0x%x\n", unstuffed_msg[unstuffed_size-1], bcc2_builder(unstuffed_msg, unstuffed_size-1));
+                    update_state_info_rcv(&state, unstuffed_msg[unstuffed_size-1] == bcc2_builder(unstuffed_msg, unstuffed_size-1));
                     break;
 
                 case (REJ_I):
@@ -626,7 +625,7 @@ int llread(int fd, uint8_t *buffer) {
                 case (RR_I):
                     read_successful = 1;
                     R = ((!R) << 7) >> 7;
-                    printf("R: 0x%x; C_I(R): 0x%x\n", R, C_I(R));
+                    printf("R: 0x%x; C_I(R): 0x%x ", R, C_I(R));
                     rr_msg_size = control_frame_builder(RR, rr_msg);
                     write(fd, rr_msg, rr_msg_size);
                     update_state_info_rcv(&state, 0);
@@ -640,14 +639,8 @@ int llread(int fd, uint8_t *buffer) {
         }
     }
 
-    uint8_t * destuffed_message = NULL;
-
-    int destuffed_msg_size = message_destuffer(temp_buffer, msg_size - 2, &destuffed_message);
-
-    memcpy(buffer, destuffed_message, destuffed_msg_size);
-
-    free(stuffed_msg);
-    free(destuffed_message);
+    memcpy(buffer, unstuffed_msg, unstuffed_size-1);
+    free(unstuffed_msg);
 
     return msg_size;
 }
