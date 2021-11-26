@@ -33,6 +33,7 @@ typedef enum state_info_rcv {
     BCC1_INVALID,
     REJ_I,
     RR_I,
+    IDLE_REJ_I,
     STOP_I
 } state_info_rcv_t;
 
@@ -196,19 +197,19 @@ static int update_state_info_rcv(state_info_rcv_t *state, uint8_t byte){
 
         case (START_I):
             if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = REJ_I;
+            else *state = IDLE_REJ_I;
             break;
 
         case (FLAG_RCV_I):
             if (byte == A) *state = A_RCV_I;
             else if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = REJ_I;
+            else *state = IDLE_REJ_I;
             break;
 
         case (A_RCV_I):
             if (C_I(R) == byte) *state = C_RCV_I;
             else if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = REJ_I;
+            else *state = IDLE_REJ_I;
             break;
 
         case (C_RCV_I):
@@ -234,7 +235,12 @@ static int update_state_info_rcv(state_info_rcv_t *state, uint8_t byte){
 
         case (BCC1_INVALID): // TODO should we rather pass the current message and the old message and compare them here instead of outside?
             if (byte) *state = RR_I; // TODO if (byte) then it's a repeated msg
-            else *state = REJ_I;
+            else *state = IDLE_REJ_I;
+            break;
+
+        case (IDLE_REJ_I):
+            if (byte == FLAG) *state = REJ_I;
+            else *state = IDLE_REJ_I;
             break;
 
         case (REJ_I): // TODO change r 
@@ -505,7 +511,6 @@ int llwrite(int fd, uint8_t * buffer, int length){
     int total_msg_len = stuffed_msg_len + 5;
     uint8_t *info_msg = malloc(total_msg_len); // 6 gotten from { F, A, C, BCC1, D1...DN, BCC2, F}
 
-    
     info_msg[0] = FLAG;
     info_msg[1] = A;
     info_msg[2] = C_I(S);
@@ -515,15 +520,26 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
     setup_alarm();
 
-    while(!write_successful) { //TODO set-up time-out
+    int corrupt = 1;
 
-        for (int i = 0; i < total_msg_len; i++){
-            printf("%d: 0x%x\n", i, info_msg[i]);
-        }
+    while(!write_successful) { //TODO set-up time-out
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        write(fd, info_msg, total_msg_len * sizeof(uint8_t));
+        printf("CORRUPT: %d\n", corrupt);
+
+        if (corrupt == 0) {
+            write(fd, info_msg, total_msg_len * sizeof(uint8_t));
+        } else if (corrupt == 1) {
+            write(fd, info_msg, 10 * sizeof(uint8_t));
+            corrupt--;
+            sleep(1);
+        } else {
+            write(fd, &(info_msg[total_msg_len - 10]), 10 * sizeof(uint8_t));
+            corrupt--;
+            sleep(1);
+        }
+        
 
         printf("----- TASK: DONE\n");
 
@@ -578,16 +594,18 @@ int llread(int fd, uint8_t *buffer) {
 
     while (!read_successful){
 
+        uint8_t rej = 0;
+
         state = START_I;
         msg_size = 0;
 
-        while(state != DATA_COLLECTION && state != REJ_I){ //READS message
+        while(state != DATA_COLLECTION && state != REJ_I && state != IDLE_REJ_I){ //READS message
             read(fd, &byte_read, 1);
             update_state_info_rcv(&state, byte_read);
             printf("CC BYTE: 0x%x; STATE: %d\n", byte_read, state);
         }
 
-        while(state != BCC2_TEST && state != REJ_I) {
+        while(state != BCC2_TEST && state != REJ_I && state != IDLE_REJ_I) {
             read(fd, &byte_read, 1);
             update_state_info_rcv(&state, byte_read);
             printf("DC BYTE: 0x%x; STATE: %d\n", byte_read, state);
@@ -595,12 +613,22 @@ int llread(int fd, uint8_t *buffer) {
             msg_size++;
         }
 
+        while (state == IDLE_REJ_I)
+        {
+            read(fd, &byte_read, 1);
+            update_state_info_rcv(&state, byte_read);
+            printf("IR BYTE: 0x%x; STATE: %d\n", byte_read, state);
+        }
+        
+
         uint8_t rej_msg[CONTROL_SIZE];
         uint8_t rr_msg[CONTROL_SIZE];
         int rej_msg_size;
         int rr_msg_size;
 
         unstuffed_size = 0;
+
+
 
         while(state != STOP_I){ //TESTS BCC2
 
@@ -616,7 +644,6 @@ int llread(int fd, uint8_t *buffer) {
 
                 case (REJ_I):
                     rej_msg_size = control_frame_builder(REJ, rej_msg);
-                    tcflush(fd, TCIOFLUSH);
                     write(fd, rej_msg, rej_msg_size);
                     update_state_info_rcv(&state, 0);
                     printf("RES: REJ ; R: 0x%x\n", R);
