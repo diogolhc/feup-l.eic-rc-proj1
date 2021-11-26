@@ -509,6 +509,8 @@ int llwrite(int fd, uint8_t * buffer, int length){
     info_msg[total_msg_len-2] = bcc2_builder(stuffed_msg, stuffed_msg_len);
     info_msg[total_msg_len-1] = FLAG;
 
+    int corrupt = 1;
+
     setup_alarm();
 
     while(!write_successful) { //TODO set-up time-out
@@ -519,7 +521,12 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        write(fd, info_msg, total_msg_len * sizeof(uint8_t));
+        if (!corrupt) {
+            write(fd, info_msg, total_msg_len * sizeof(uint8_t));
+        } else {
+            write(fd, info_msg, (total_msg_len * sizeof(uint8_t))/2);
+            corrupt = 0;
+        }
 
         printf("----- TASK: DONE\n");
 
@@ -590,7 +597,6 @@ int llread(int fd, uint8_t *buffer) {
             msg_size++;
         }
 
-        printf("here state:%d\n", msg_size);
         if (msg_size>=2) stuffed_msg = malloc(msg_size - 2);
 
         uint8_t rej_msg[CONTROL_SIZE];
@@ -600,9 +606,12 @@ int llread(int fd, uint8_t *buffer) {
 
         while(state != STOP_I){ //TESTS BCC2
 
+            printf("ED; STATE: %d ; ", byte_read, state);
+
             switch(state){
                 case (BCC2_TEST):
                     memcpy(stuffed_msg, temp_buffer, msg_size-2);
+                    printf("BCC2_RCV: 0x%x ; BCC2_CMP: 0x%x\n", temp_buffer[msg_size-2], bcc2_builder(stuffed_msg, msg_size - 2));
                     update_state_info_rcv(&state, temp_buffer[msg_size-2] == bcc2_builder(stuffed_msg, msg_size - 2));
                     break;
 
@@ -611,7 +620,7 @@ int llread(int fd, uint8_t *buffer) {
                     tcflush(fd, TCIOFLUSH);
                     write(fd, rej_msg, rej_msg_size);
                     update_state_info_rcv(&state, 0);
-                    printf("RES: REJ\n");
+                    printf("RES: REJ ; R: 0x%x\n", R);
                     break;
 
                 case (RR_I):
@@ -621,7 +630,7 @@ int llread(int fd, uint8_t *buffer) {
                     rr_msg_size = control_frame_builder(RR, rr_msg);
                     write(fd, rr_msg, rr_msg_size);
                     update_state_info_rcv(&state, 0);
-                    printf("RES: RR\n");
+                    printf("RES: RR ; R: 0x%x\n", R);
                     break;
 
                 default:
@@ -629,8 +638,6 @@ int llread(int fd, uint8_t *buffer) {
                     break;
             }
         }
-
-        
     }
 
     uint8_t * destuffed_message = NULL;
