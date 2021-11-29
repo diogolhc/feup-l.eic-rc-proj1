@@ -600,7 +600,7 @@ int llread(int fd, uint8_t *buffer) {
             read(fd, &byte_read, 1);
             
             update_state_info_rcv(&state, byte_read);
-            if (state = C_RCV_I) rcv_s = byte_read >> 6;
+            if (state == C_RCV_I) rcv_s = byte_read >> 6;
             printf("CC BYTE: 0x%x; STATE: %d\n", byte_read, state);
         }
 
