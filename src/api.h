@@ -25,7 +25,7 @@
 
 #define TIME_OUT_TIME 3
 
-#define DATA_PACKET_MAX_SIZE 25 // TODO define a good number 
+#define DATA_PACKET_MAX_SIZE 1000 // TODO define a good number 
 
 typedef enum control_frame_type {
     SET,
