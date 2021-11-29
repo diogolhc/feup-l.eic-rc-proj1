@@ -524,8 +524,6 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        printf("CORRUPT: %d\n", corrupt);
-
         write(fd, info_msg, total_msg_len * sizeof(uint8_t));
 
         printf("----- TASK: DONE\n");
