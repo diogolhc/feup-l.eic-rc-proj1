@@ -520,26 +520,13 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
     setup_alarm();
 
-    int corrupt = 1;
-
     while(!write_successful) { //TODO set-up time-out
 
         printf("----- TASK: WRITING MESSAGE\n");
 
         printf("CORRUPT: %d\n", corrupt);
 
-        if (corrupt == 0) {
-            write(fd, info_msg, total_msg_len * sizeof(uint8_t));
-        } else if (corrupt == 1) {
-            write(fd, info_msg, 10 * sizeof(uint8_t));
-            corrupt--;
-            sleep(1);
-        } else {
-            write(fd, &(info_msg[total_msg_len - 10]), 10 * sizeof(uint8_t));
-            corrupt--;
-            sleep(1);
-        }
-        
+        write(fd, info_msg, total_msg_len * sizeof(uint8_t));
 
         printf("----- TASK: DONE\n");
 
