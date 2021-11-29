@@ -33,6 +33,7 @@ typedef enum state_info_rcv {
     BCC1_INVALID,
     REJ_I,
     RR_I,
+    DUPLICATED_I,
     IDLE_REJ_I,
     STOP_I
 } state_info_rcv_t;
@@ -105,13 +106,15 @@ static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) { //TODO n
             break;
 
         case RR_RCV:
-            if (byte == (A^C_RR(S))) *state = BCC_OK;
+            if (byte == (A^C_RR(next_S))) *state = BCC_OK;
             else if (byte == FLAG) *state = FLAG_RCV;
             else *state = START;
             break;
 
+        
+
         case REJ_RCV:
-            if (byte == (A^C_REJ(S))) *state = BCC_OK;
+            if (byte == (A^C_REJ(next_S))) *state = BCC_OK;
             else if (byte == FLAG) *state = FLAG_RCV;
             else *state = START;
             break;
@@ -231,7 +234,12 @@ static int update_state_info_rcv(state_info_rcv_t *state, uint8_t byte){
 
         case (BCC2_TEST): 
             if (byte) *state = RR_I; // TODO byte acts as bool 1 for valid 0 invalid
-            else *state = REJ_I;
+            else *state = DUPLICATED_I;
+            break;
+
+        case DUPLICATED_I:
+            if (byte) *state = RR_I;
+            else *state = IDLE_REJ_I;
             break;
 
         case (BCC1_INVALID): // TODO should we rather pass the current message and the old message and compare them here instead of outside?
@@ -586,9 +594,13 @@ int llread(int fd, uint8_t *buffer) {
         state = START_I;
         msg_size = 0;
 
+        int rcv_s = -1;
+
         while(state != DATA_COLLECTION && state != REJ_I && state != IDLE_REJ_I){ //READS message
             read(fd, &byte_read, 1);
+            
             update_state_info_rcv(&state, byte_read);
+            if (state = C_RCV_I) rcv_s = byte_read >> 6;
             printf("CC BYTE: 0x%x; STATE: %d\n", byte_read, state);
         }
 
@@ -627,6 +639,11 @@ int llread(int fd, uint8_t *buffer) {
                     unstuffed_size = message_destuffer(temp_buffer, msg_size-1, &unstuffed_msg);
                     printf("BCC2_RCV: 0x%x ; BCC2_CMP: 0x%x\n", unstuffed_msg[unstuffed_size-1], bcc2_builder(unstuffed_msg, unstuffed_size-1));
                     update_state_info_rcv(&state, unstuffed_msg[unstuffed_size-1] == bcc2_builder(unstuffed_msg, unstuffed_size-1));
+                    break;
+
+                case (DUPLICATED_I):
+                    update_state_info_rcv(&state, rcv_s != R);
+                    printf("DUP: DUP ? %d\n", rcv_s != R);
                     break;
 
                 case (REJ_I):
