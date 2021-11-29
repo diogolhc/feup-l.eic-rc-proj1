@@ -41,6 +41,7 @@ static struct termios oldtio;
 static volatile int g_count = 0;
 
 static uint8_t S = 0;
+static uint8_t next_S = 0;
 static uint8_t R = 0;
 
 int control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
@@ -100,7 +101,7 @@ static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) { //TODO n
             if ((byte & 0x0F) == 0x05) *state = RR_RCV;
             else if ((byte & 0x0F) == 0x01) *state = REJ_RCV;
             else *state = START;
-            S = (byte >> 7) & 0x01;
+            next_S = (byte >> 7) & 0x01;
             break;
 
         case RR_RCV:
@@ -556,6 +557,7 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
     alarm(0);
 
+    S = next_S;
 
     // END
 
