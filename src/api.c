@@ -23,19 +23,21 @@ typedef enum state_sv_frame {
 } state_sv_frame_t;
 
 typedef enum state_info_rcv {
-    START_I,
-    FLAG_RCV_I,
-    A_RCV_I,
-    C_RCV_I,
-    DATA_COLLECTION, //Also BB1_OK
-    DESTUFFING,
-    BCC2_TEST,
-    BCC1_INVALID,
-    REJ_I,
-    RR_I,
-    DUPLICATED_I,
-    IDLE_REJ_I,
-    STOP_I
+    I_START,
+    I_GOT_FLAG,
+    I_IGNORE,
+    I_GOT_A,
+    I_GOT_C,
+    I_GOT_BCC1,
+    I_DATA_COLLECTION,
+    I_GOT_ESC,
+    I_GOT_END_FLAG,
+    I_TEST_DUP_RR,
+    I_TEST_DUP_REJ,
+    I_RR_DONT_STORE,
+    I_RR_STORE,
+    I_REJ,
+    I_STOP
 } state_info_rcv_t;
 
 static struct termios oldtio;
@@ -110,8 +112,6 @@ static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) { //TODO n
             else if (byte == FLAG) *state = FLAG_RCV;
             else *state = START;
             break;
-
-        
 
         case REJ_RCV:
             if (byte == (A^C_REJ(next_S))) *state = BCC_OK;
@@ -198,66 +198,75 @@ static int update_state_set_ua(uint8_t c, state_sv_frame_t *state, uint8_t byte)
 static int update_state_info_rcv(state_info_rcv_t *state, uint8_t byte){
     
     switch (*state){
-
-        case (START_I):
-            if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = IDLE_REJ_I;
+        case (I_START):
+            if (byte == FLAG) *state = I_GOT_FLAG;
+            else *state = I_IGNORE;
+            break;
+        
+        case (I_GOT_FLAG):
+            if (byte == FLAG) *state = I_GOT_FLAG;
+            else if (byte == A) *state = I_GOT_A;
+            else *state = I_IGNORE;
             break;
 
-        case (FLAG_RCV_I):
-            if (byte == A) *state = A_RCV_I;
-            else if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = IDLE_REJ_I;
+        case (I_IGNORE):
+            if (byte == FLAG) *state = I_GOT_FLAG;
+            else *state = I_IGNORE;
             break;
 
-        case (A_RCV_I):
-            if (C_I(R) == byte) *state = C_RCV_I;
-            else if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = IDLE_REJ_I;
+        case (I_GOT_A):
+            if (byte == C_I(R)) * state = I_GOT_C;
+            else *state = I_IGNORE;
             break;
 
-        case (C_RCV_I):
-            if (A ^ C_I(R)) *state = DATA_COLLECTION; // TODO the cndition won't be this one, it's just for testing purposes
-            else if (byte == FLAG) *state = FLAG_RCV_I;
-            else *state = BCC1_INVALID;
+        case (I_GOT_C):
+            if (byte == (C_I(R)^A)) *state = I_GOT_BCC1;
+            else *state = I_IGNORE;
             break;
 
-        case (DATA_COLLECTION):
-            if (byte == FLAG) *state = BCC2_TEST;
-            else if (byte == ESC) *state = DESTUFFING;
-            else *state = DATA_COLLECTION;
+        case (I_GOT_BCC1):
+            if (byte == ESC) *state = I_GOT_ESC;
+            else *state = I_DATA_COLLECTION;
             break;
 
-        case (DESTUFFING):
-            *state = DATA_COLLECTION; // TODO should probably test for FLAG || ESC
+        case (I_DATA_COLLECTION):
+            if (byte == FLAG) *state = I_GOT_END_FLAG;
+            else if (byte == ESC) *state = I_GOT_ESC;
+            else *state = I_DATA_COLLECTION;  
+            break;
+        
+        case (I_GOT_ESC): //TODO maybe not ignore?
+            *state = I_DATA_COLLECTION;
+            break;
+        
+        case (I_GOT_END_FLAG):
+            if (byte) *state = I_TEST_DUP_RR;  // byte = is bcc2 valid ?
+            else *state = I_TEST_DUP_REJ;
+            break;
+        
+        case (I_TEST_DUP_RR):
+            if (byte) *state = I_RR_DONT_STORE;    // byte = is dup ?
+            else *state = I_RR_STORE;
             break;
 
-        case (BCC2_TEST): 
-            if (byte) *state = RR_I; // TODO byte acts as bool 1 for valid 0 invalid
-            else *state = DUPLICATED_I;
+        case (I_TEST_DUP_REJ):
+            if (byte) *state = I_RR_DONT_STORE;  // byte = is dup ?
+            else *state = I_REJ;
             break;
 
-        case DUPLICATED_I:
-            if (byte) *state = RR_I;
-            else *state = IDLE_REJ_I;
+        case (I_RR_DONT_STORE):
+            *state = I_START;
             break;
 
-        case (BCC1_INVALID): // TODO should we rather pass the current message and the old message and compare them here instead of outside?
-            if (byte) *state = RR_I; // TODO if (byte) then it's a repeated msg
-            else *state = IDLE_REJ_I;
+        case (I_RR_STORE):
+            *state = I_STOP;
             break;
 
-        case (IDLE_REJ_I):
-            if (byte == FLAG) *state = REJ_I;
-            else *state = IDLE_REJ_I;
+        case (I_REJ):
+            *state = I_START;
             break;
-
-        case (REJ_I): // TODO change r 
-            *state = STOP_I;
-            break;
-
-        case (RR_I):
-            *state = STOP_I;
+        
+        case (I_STOP):
             break;
 
         default:
@@ -579,98 +588,105 @@ int llread(int fd, uint8_t *buffer) {
 
     state_info_rcv_t state;
     uint8_t byte_read = 0;
-    uint8_t temp_buffer[1024]; // TODO what should the size be?
+    uint8_t data_read[2048]; // TODO what should the size be?
     int msg_size = 0;
-
-    int read_successful = 0;
 
     uint8_t *unstuffed_msg = NULL;
     int unstuffed_size = 0;
 
-    while (!read_successful){
+    state = I_START;
 
-        uint8_t rej = 0;
+    printf("--- NEW READ ----\n");
 
-        state = START_I;
+    while (state != I_STOP){
+
+        printf("--- TRY READ ----\n");
+
         msg_size = 0;
-
         int rcv_s = -1;
 
-        while(state != DATA_COLLECTION && state != REJ_I && state != IDLE_REJ_I){ //READS message
+        while (state != I_GOT_BCC1){
+            printf("PHASE 1 ; START_STATE : %d ; ", state);
             read(fd, &byte_read, 1);
-            
+            if (state == I_GOT_C) rcv_s = byte_read >> 6;
             update_state_info_rcv(&state, byte_read);
-            if (state == C_RCV_I) rcv_s = byte_read >> 6;
-            printf("CC BYTE: 0x%x; STATE: %d\n", byte_read, state);
+            printf("END_STATE : %d\n", state);
         }
 
-        while(state != BCC2_TEST && state != REJ_I && state != IDLE_REJ_I) {
+        while(state != I_GOT_END_FLAG) {
+            printf("PHASE 2 ; START_STATE : %d ; ", state);
             read(fd, &byte_read, 1);
             update_state_info_rcv(&state, byte_read);
-            printf("DC BYTE: 0x%x; STATE: %d\n", byte_read, state);
-            temp_buffer[msg_size] = byte_read;
+            data_read[msg_size] = byte_read;
             msg_size++;
+            printf("BYTE : 0x%x ; END_STATE : %d\n", byte_read, state);
         }
 
-        while (state == IDLE_REJ_I)
-        {
-            read(fd, &byte_read, 1);
-            update_state_info_rcv(&state, byte_read);
-            printf("IR BYTE: 0x%x; STATE: %d\n", byte_read, state);
-        }
-        
-
+        unstuffed_size = 0;
         uint8_t rej_msg[CONTROL_SIZE];
         uint8_t rr_msg[CONTROL_SIZE];
         int rej_msg_size;
         int rr_msg_size;
 
-        unstuffed_size = 0;
+        free(unstuffed_msg);
+        unstuffed_size = message_destuffer(data_read, msg_size-1, &unstuffed_msg);
 
+        while (state != I_STOP && state != I_START){
 
+            printf("PHASE 3 ; START_STATE : %d ; ", state);
 
-        while(state != STOP_I){ //TESTS BCC2
-
-            printf("ED; STATE: %d ; ", state);
+            uint8_t res = 0;
 
             switch(state){
-                case (BCC2_TEST):
-                    free(unstuffed_msg);
-                    unstuffed_size = message_destuffer(temp_buffer, msg_size-1, &unstuffed_msg);
-                    printf("BCC2_RCV: 0x%x ; BCC2_CMP: 0x%x\n", unstuffed_msg[unstuffed_size-1], bcc2_builder(unstuffed_msg, unstuffed_size-1));
-                    update_state_info_rcv(&state, unstuffed_msg[unstuffed_size-1] == bcc2_builder(unstuffed_msg, unstuffed_size-1));
+                case (I_GOT_END_FLAG):
+                    res = unstuffed_msg[unstuffed_size-1] == bcc2_builder(unstuffed_msg, unstuffed_size-1);
                     break;
 
-                case (DUPLICATED_I):
-                    update_state_info_rcv(&state, rcv_s != R);
-                    printf("DUP: DUP ? %d\n", rcv_s != R);
+                case (I_TEST_DUP_REJ):
+                    res = rcv_s != R;
                     break;
 
-                case (REJ_I):
-                    rej_msg_size = control_frame_builder(REJ, rej_msg);
-                    write(fd, rej_msg, rej_msg_size);
-                    update_state_info_rcv(&state, 0);
-                    printf("RES: REJ ; R: 0x%x\n", R);
+                case (I_TEST_DUP_RR):
+                    res = rcv_s != R;
                     break;
-
-                case (RR_I):
-                    read_successful = 1;
-                    R = ((!R) << 7) >> 7;
-                    printf("R: 0x%x; C_I(R): 0x%x ", R, C_I(R));
+                
+                case (I_RR_DONT_STORE):
+                    R = ((!R) << 7) >> 7; // TODO make this a function or smt
                     rr_msg_size = control_frame_builder(RR, rr_msg);
                     write(fd, rr_msg, rr_msg_size);
-                    update_state_info_rcv(&state, 0);
-                    printf("RES: RR ; R: 0x%x\n", R);
+                    break;
+
+                case (I_RR_STORE):
+                    R = ((!R) << 7) >> 7; // TODO make this a function or smt
+                    rr_msg_size = control_frame_builder(RR, rr_msg);
+                    memcpy(buffer, unstuffed_msg, unstuffed_size-1);
+                    write(fd, rr_msg, rr_msg_size);
+                    break;
+
+                case (I_REJ):
+                    rej_msg_size = control_frame_builder(REJ, rej_msg);
+                    write(fd, rej_msg, rej_msg_size);
+                    break;
+
+                case (I_STOP):
+                    break;
+
+                case (I_START):
                     break;
 
                 default:
-                    printf("ERROR: not supposed to reach this");
+                    perror("NOT SUPPOSED TO REACH THIS\n");
+                    scanf("%d");
                     break;
             }
+
+            update_state_info_rcv(&state, res);
+
+            printf("RES : %d ; END_STATE : %d\n", res, state);
         }
+        
     }
 
-    memcpy(buffer, unstuffed_msg, unstuffed_size-1);
     free(unstuffed_msg);
 
     return msg_size;
