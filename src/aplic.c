@@ -175,7 +175,7 @@ int receive_file(int porta) {
     }
 
     int fd_file_to_write = -1;
-    //int sequence_number = 0; TODO use this
+    int sequence_number = 0;
     off_t file_size = 0;
 
     int not_end_packet = TRUE;
@@ -194,15 +194,19 @@ int receive_file(int porta) {
                 break;
             }
 
-            // int N = packet[1]; // TODO what to do if N doesn't check out with previous+1? since it's not supposed to check for errors in application layer...
+            int N = packet[1]; 
 
-            // if N == sequence_number before, ignores current packet,
-            // but what if there is like a sequence_number before + 2?
-            // no way here to ask for the missing packet...
-
-
-            int num_octets = K(packet[3], packet[2]);
-            if (write(fd_file_to_write, &packet[4], num_octets) == -1) {
+            if (N == sequence_number) {
+                int num_octets = K(packet[3], packet[2]);
+                if (write(fd_file_to_write, &packet[4], num_octets) == -1) {
+                    free(packet);
+                    llclose(fd_serial_port, RECEIVER);
+                    return -1;
+                }
+                sequence_number++;
+            } else {
+                // wrong sequence number
+                printf("Wrong packet sequence number. Expected: %d ; Got: %d\n", sequence_number, N);
                 free(packet);
                 llclose(fd_serial_port, RECEIVER);
                 return -1;
@@ -240,11 +244,6 @@ int receive_file(int porta) {
             break;
 
         case C_END:
-            // TODO should it check equality in all the fields?
-            // what to do if they are different?
-            // data-link layer should've handled that
-
-
             if (fd_file_to_write != -1) { 
                 close(fd_file_to_write);
                 not_end_packet = FALSE;
