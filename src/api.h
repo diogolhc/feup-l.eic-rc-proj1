@@ -27,6 +27,8 @@
 
 #define DATA_PACKET_MAX_SIZE 1000 // TODO define a good number 
 
+#define OVERFLOW_PROTECTION 10
+
 typedef enum control_frame_type {
     SET,
     DISC,
