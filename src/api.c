@@ -47,12 +47,11 @@ static uint8_t S = 0;
 static uint8_t next_S = 0;
 static uint8_t R = 0;
 
-int control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
+static void control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
     msg[0] = FLAG; 
     msg[1] = A;
     
-    switch (cft)
-    {
+    switch (cft) {
     case SET:
         msg[2] = C_SET;
         break;
@@ -79,8 +78,6 @@ int control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
 
     msg[3] = msg[1] ^ msg[2];
     msg[4] = FLAG;
-
-    return 5;
 }
 
 static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) {
@@ -128,7 +125,7 @@ static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) {
             break;
 
         default:
-            printf("ERROR: not supposed to reach this");
+            printf("ERROR: not supposed to reach this\n");
             break;
     }
 
@@ -187,7 +184,7 @@ static int update_state_set_ua(uint8_t c, state_sv_frame_t *state, uint8_t byte)
             break;
             
         default:
-            printf("ERROR: not supposed to reach this");
+            printf("ERROR: not supposed to reach this\n");
             break;
     }
 
@@ -321,12 +318,12 @@ static int common_open(int porta) {
     fd = open(buffer, O_RDWR | O_NOCTTY );
     if (fd < 0) {
         perror(buffer);
-        exit(-1);
+        return -1;
     }
 
     if (tcgetattr(fd, &oldtio) == -1) { /* save current port settings */
         perror("tcgetattr");
-        exit(-1);
+        return -1;
     }
 
     bzero(&newtio, sizeof(newtio));
@@ -344,7 +341,7 @@ static int common_open(int porta) {
 
     if (tcsetattr(fd,TCSANOW,&newtio) == -1) {
         perror("tcsetattr");
-        exit(-1);
+        return -1;
     }
 
     printf("New termios structure set\n");
@@ -359,6 +356,10 @@ static void R_invert(){
 int llopen(int porta, type_t type) {
     state_sv_frame_t state;
     int fd = common_open(porta);
+    if (fd < 0) {
+        printf("Failed to open serial port.\n");
+        return -1;
+    }
 
     printf("%d opened fd\n", fd);
 
@@ -368,7 +369,6 @@ int llopen(int porta, type_t type) {
     uint8_t ua[CONTROL_SIZE];
     control_frame_builder(UA, ua);
 
-    // TODO break into 2?
     switch (type) {
     case TRANSMITTER:
         if (setup_alarm() != 0) {
@@ -378,9 +378,13 @@ int llopen(int porta, type_t type) {
         int ua_received = FALSE;
         int res;
         while (g_count < MAX_NO_TIMEOUT && !ua_received) {
-            state = START; // TODO should the state reset every time? or mantain after sending other SET?
+            state = START;
 
-            res = write(fd, set, CONTROL_SIZE * sizeof(uint8_t));   
+            res = write(fd, set, CONTROL_SIZE * sizeof(uint8_t));
+            if (res == -1) {
+                printf("llopen() -> write() TRANSMITTER error\n");
+                return -1;
+            }
             printf("%d bytes written\n", res);
 
             alarm(TIME_OUT_TIME);
@@ -428,9 +432,9 @@ int llopen(int porta, type_t type) {
             }
         }
         
-        if (write(fd, ua, 5) < 0) {
-            perror("");
-            return 1;
+        if (write(fd, ua, CONTROL_SIZE) < 0) {
+            printf("llopen() -> write() RECEIVER error\n");
+            return -1;
         }
 
         printf("ACK\n");
@@ -457,7 +461,11 @@ int llclose(int fd, type_t type) {
         while (g_count < MAX_NO_TIMEOUT && !disc_received) {
             state = START;
 
-            res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));   
+            res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
+            if (res == -1) {
+                printf("llclose() -> write() TRANSMITTER error\n");
+                return -1;
+            }  
             printf("%d bytes written\n", res);
 
             alarm(TIME_OUT_TIME);
@@ -488,7 +496,7 @@ int llclose(int fd, type_t type) {
         if (disc_received) {
             res = write(fd, ua, CONTROL_SIZE * sizeof(uint8_t));
         } else {
-            // return erro
+            printf("DISC not received.\n");
         }
 
         break;
@@ -535,17 +543,17 @@ int message_stuffing(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out_
 
     for (int i = 0; i < in_msg_size; i++){
         switch (in_msg[i]){
-            case FLAG: 
-                out_message[size_counter++] = ESC;
-                out_message[size_counter++] = FLAG ^ STUFFER;
-                break;
-            case ESC:
-                out_message[size_counter++] = ESC;
-                out_message[size_counter++] = ESC ^ STUFFER;
-                break;
-            default:
-                out_message[size_counter++] = in_msg[i];
-                break;
+        case FLAG: 
+            out_message[size_counter++] = ESC;
+            out_message[size_counter++] = FLAG ^ STUFFER;
+            break;
+        case ESC:
+            out_message[size_counter++] = ESC;
+            out_message[size_counter++] = ESC ^ STUFFER;
+            break;
+        default:
+            out_message[size_counter++] = in_msg[i];
+            break;
         }
     }
     return size_counter;
@@ -610,11 +618,16 @@ int llwrite(int fd, uint8_t * buffer, int length){
     setup_alarm();
     g_count = 0;
 
-    while(!write_successful && g_count < MAX_NO_TIMEOUT) { //TODO set-up time-out
+    while(!write_successful && g_count < MAX_NO_TIMEOUT) {
 
         printf("----- TASK: WRITING MESSAGE\n");
 
-        write(fd, info_msg, total_msg_len * sizeof(uint8_t));
+        if (write(fd, info_msg, total_msg_len * sizeof(uint8_t)) == -1) {
+            printf("llwrite() -> write() error\n");
+            free(info_msg);
+            free(stuffed_msg);
+            return -1;
+        }
 
         printf("----- TASK: DONE\n");
 
@@ -629,7 +642,7 @@ int llwrite(int fd, uint8_t * buffer, int length){
         while(state != STOP){
             res = read(fd, &byte_read, 1);
 
-            if (res == -1){
+            if (res == -1) {
                 write_successful = 0;
                 break;
             }
@@ -637,8 +650,11 @@ int llwrite(int fd, uint8_t * buffer, int length){
             update_state_rr_rej(&state, byte_read);
             printf("BYTE: 0x%x; STATE: %d\n", byte_read, state);
 
-            if (state == RR_RCV) write_successful = 1;
-            else if (state == REJ_RCV) write_successful = 0;
+            if (state == RR_RCV) {
+                write_successful = 1;
+            } else if (state == REJ_RCV) {
+                write_successful = 0;
+            }
         }
 
         printf("----- TASK: DONE\n");
@@ -651,8 +667,11 @@ int llwrite(int fd, uint8_t * buffer, int length){
     free(info_msg);
     free(stuffed_msg);
 
-    if (g_count >= MAX_NO_TIMEOUT) ret = -1;
-    else ret = total_msg_len;
+    if (g_count >= MAX_NO_TIMEOUT) {
+        ret = -1;
+    } else {
+        ret = total_msg_len;
+    }
 
     return ret;
 }
@@ -685,7 +704,13 @@ int llread(int fd, uint8_t *buffer) {
 
         while (state != I_GOT_BCC1){
             printf("PHASE 1 ; START_STATE : %d ; ", state);
-            read(fd, &byte_read, 1);
+            if (read(fd, &byte_read, 1) == -1) {
+                printf("llread() -> read() 1. error.\n");
+                alarm(0);
+                free(unstuffed_msg);
+                return -1;
+            }
+
             if (g_count) {
                 alarm(0);
                 free(unstuffed_msg);
@@ -698,7 +723,13 @@ int llread(int fd, uint8_t *buffer) {
 
         while(state != I_GOT_END_FLAG) {
             printf("PHASE 2 ; START_STATE : %d ; ", state);
-            read(fd, &byte_read, 1);
+            if (read(fd, &byte_read, 1) == -1) {
+                printf("llread() -> read() 2. error.\n");
+                alarm(0);
+                free(unstuffed_msg);
+                return -1;
+            }
+
             if (g_count) {
                 alarm(0);
                 free(unstuffed_msg);
@@ -713,8 +744,6 @@ int llread(int fd, uint8_t *buffer) {
         unstuffed_size = 0;
         uint8_t rej_msg[CONTROL_SIZE];
         uint8_t rr_msg[CONTROL_SIZE];
-        int rej_msg_size;
-        int rr_msg_size;
 
         free(unstuffed_msg);
         unstuffed_size = message_destuffer(data_read, msg_size-1, &unstuffed_msg);
@@ -740,20 +769,35 @@ int llread(int fd, uint8_t *buffer) {
                 
                 case (I_RR_DONT_STORE):
                     R_invert();
-                    rr_msg_size = control_frame_builder(RR, rr_msg);
-                    write(fd, rr_msg, rr_msg_size);
+                    control_frame_builder(RR, rr_msg);
+                    if (write(fd, rr_msg, CONTROL_SIZE) == -1) {
+                        printf("llread() -> write() 1. error.\n");
+                        alarm(0);
+                        free(unstuffed_msg);
+                        return -1;
+                    }
                     break;
 
                 case (I_RR_STORE):
                     R_invert();
-                    rr_msg_size = control_frame_builder(RR, rr_msg);
+                    control_frame_builder(RR, rr_msg);
                     memcpy(buffer, unstuffed_msg, unstuffed_size-1);
-                    write(fd, rr_msg, rr_msg_size);
+                    if (write(fd, rr_msg, CONTROL_SIZE) == -1) {
+                        printf("llread() -> write() 2. error.\n");
+                        alarm(0);
+                        free(unstuffed_msg);
+                        return -1;
+                    }
                     break;
 
                 case (I_REJ):
-                    rej_msg_size = control_frame_builder(REJ, rej_msg);
-                    write(fd, rej_msg, rej_msg_size);
+                    control_frame_builder(REJ, rej_msg);
+                    if (write(fd, rej_msg, CONTROL_SIZE) == -1) {
+                        printf("llread() -> write() 3. error.\n");
+                        alarm(0);
+                        free(unstuffed_msg);
+                        return -1;
+                    }
                     break;
 
                 case (I_STOP):
@@ -763,7 +807,7 @@ int llread(int fd, uint8_t *buffer) {
                     break;
 
                 default:
-                    perror("NOT SUPPOSED TO REACH THIS\n");
+                    printf("NOT SUPPOSED TO REACH THIS\n");
                     break;
             }
             update_state_info_rcv(&state, res);

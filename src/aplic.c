@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#define CONTROL_PACKET_MAX_SIZE 500 // TODO check if good
+#define CONTROL_PACKET_MAX_SIZE 500
 #define PACKET_MAX_SIZE (CONTROL_PACKET_MAX_SIZE > DATA_PACKET_MAX_SIZE ? CONTROL_PACKET_MAX_SIZE : DATA_PACKET_MAX_SIZE)
 #define FILE_NAME_MAX_SIZE 255
 
@@ -27,8 +27,6 @@
 
 #define T_FILE_SIZE 0x0
 #define T_FILE_NAME 0x1
-
-// TODO check if the return with errors should return also or enforce here other attempts
 
 
 static off_t get_file_size(int fd) {
@@ -235,7 +233,7 @@ int receive_file(int porta) {
                     }
 
                 } else {
-                    // TODO error, should it do something?
+                    printf("ERROR: not supposed to reach this\n");
                 }
 
                 i += L;
