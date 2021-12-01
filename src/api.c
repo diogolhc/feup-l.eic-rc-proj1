@@ -460,7 +460,7 @@ int llclose(int fd, type_t type) {
 
     switch (type) {
     case TRANSMITTER:
-        while (g_count < 3 && !disc_received) { // TODO use macro for 3
+        while (g_count < MAX_NO_TIMEOUT && !disc_received) { // TODO use macro for 3
             state = START;
 
             res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));   
