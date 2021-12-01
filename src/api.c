@@ -358,6 +358,10 @@ static int common_open(int porta) {
     return fd;
 }
 
+static void R_invert(){
+    R = ((!R) << 7) >> 7;
+}
+
 int llopen(int porta, type_t type) {
     state_sv_frame_t state;
     int fd = common_open(porta);
@@ -379,7 +383,7 @@ int llopen(int porta, type_t type) {
 
         int ua_received = FALSE;
         int res;
-        while (g_count < 3 && !ua_received) {
+        while (g_count < MAX_NO_TIMEOUT && !ua_received) {
             state = START; // TODO should the state reset every time? or mantain after sending other SET?
 
             res = write(fd, set, CONTROL_SIZE * sizeof(uint8_t));   
@@ -456,7 +460,7 @@ int llclose(int fd, type_t type) {
 
     switch (type) {
     case TRANSMITTER:
-        while (g_count < 3 && !disc_received) { // TODO use macro for 3
+        while (g_count < MAX_NO_TIMEOUT && !disc_received) { // TODO use macro for 3
             state = START;
 
             res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));   
@@ -592,17 +596,15 @@ uint8_t bcc2_builder(uint8_t msg[], unsigned int msg_size){
 int llwrite(int fd, uint8_t * buffer, int length){
 
     int write_successful = 0;
-
-    int rcv_nr = 0; // TODO read from the receiver response
-
+    int ret = 0;
     uint8_t bcc2 = bcc2_builder(buffer, length);
     uint8_t unstuffed_msg[length+1];
     memcpy(unstuffed_msg, buffer, length);
     unstuffed_msg[length] = bcc2;
     uint8_t *stuffed_msg = NULL; 
     int stuffed_msg_len = message_stuffing(unstuffed_msg, length+1, &stuffed_msg); //memory is allocated formstuffed_msg, dont forget to free it
-    int total_msg_len = stuffed_msg_len + 5;
-    uint8_t *info_msg = malloc(total_msg_len); // 6 gotten from { F, A, C, BCC1, D1...DN, BCC2, F}
+    int total_msg_len = stuffed_msg_len + CONTROL_SIZE;
+    uint8_t *info_msg = malloc(total_msg_len);
 
     info_msg[0] = FLAG;
     info_msg[1] = A;
@@ -612,8 +614,9 @@ int llwrite(int fd, uint8_t * buffer, int length){
     info_msg[total_msg_len-1] = FLAG;
 
     setup_alarm();
+    g_count = 0;
 
-    while(!write_successful) { //TODO set-up time-out
+    while(!write_successful && g_count < MAX_NO_TIMEOUT) { //TODO set-up time-out
 
         printf("----- TASK: WRITING MESSAGE\n");
 
@@ -651,31 +654,37 @@ int llwrite(int fd, uint8_t * buffer, int length){
 
     S = next_S;
 
-    // END
-
     free(info_msg);
     free(stuffed_msg);
 
-    return rcv_nr;
+    if (g_count >= MAX_NO_TIMEOUT) ret = -1;
+    else ret = total_msg_len;
+
+    return ret;
 }
 
 int llread(int fd, uint8_t *buffer) {
 
     state_info_rcv_t state;
     uint8_t byte_read = 0;
-    uint8_t data_read[DATA_PACKET_MAX_SIZE * 2 + OVERFLOW_PROTECTION]; // TODO what should the size be?
+    uint8_t data_read[DATA_PACKET_MAX_SIZE * 2 + OVERFLOW_PROTECTION];
     int msg_size = 0;
 
     uint8_t *unstuffed_msg = NULL;
     int unstuffed_size = 0;
 
+    setup_alarm();
+    g_count = 0;
+
     state = I_START;
 
-    printf("--- NEW READ ----\n");
+    printf("--- NEW READ ---\n");
 
     while (state != I_STOP){
 
-        printf("--- TRY READ ----\n");
+        printf("--- TRY READ ---\n");
+
+        alarm(TIME_OUT_TIME * MAX_NO_TIMEOUT);
 
         msg_size = 0;
         int rcv_s = -1;
@@ -683,6 +692,11 @@ int llread(int fd, uint8_t *buffer) {
         while (state != I_GOT_BCC1){
             printf("PHASE 1 ; START_STATE : %d ; ", state);
             read(fd, &byte_read, 1);
+            if (g_count) {
+                alarm(0);
+                free(unstuffed_msg);
+                return -1;
+            }
             if (state == I_GOT_C) rcv_s = byte_read >> 6;
             update_state_info_rcv(&state, byte_read);
             printf("END_STATE : %d\n", state);
@@ -691,6 +705,11 @@ int llread(int fd, uint8_t *buffer) {
         while(state != I_GOT_END_FLAG) {
             printf("PHASE 2 ; START_STATE : %d ; ", state);
             read(fd, &byte_read, 1);
+            if (g_count) {
+                alarm(0);
+                free(unstuffed_msg);
+                return -1;
+            }
             update_state_info_rcv(&state, byte_read);
             data_read[msg_size] = byte_read;
             msg_size++;
@@ -726,13 +745,13 @@ int llread(int fd, uint8_t *buffer) {
                     break;
                 
                 case (I_RR_DONT_STORE):
-                    R = ((!R) << 7) >> 7; // TODO make this a function or smt
+                    R_invert();
                     rr_msg_size = control_frame_builder(RR, rr_msg);
                     write(fd, rr_msg, rr_msg_size);
                     break;
 
                 case (I_RR_STORE):
-                    R = ((!R) << 7) >> 7; // TODO make this a function or smt
+                    R_invert();
                     rr_msg_size = control_frame_builder(RR, rr_msg);
                     memcpy(buffer, unstuffed_msg, unstuffed_size-1);
                     write(fd, rr_msg, rr_msg_size);
@@ -753,13 +772,12 @@ int llread(int fd, uint8_t *buffer) {
                     perror("NOT SUPPOSED TO REACH THIS\n");
                     break;
             }
-
             update_state_info_rcv(&state, res);
-
             printf("RES : %d ; END_STATE : %d\n", res, state);
         }
-        
     }
+
+    alarm(0);
 
     free(unstuffed_msg);
 
