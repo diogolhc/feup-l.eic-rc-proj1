@@ -202,7 +202,7 @@ int receive_file(int porta) {
                     llclose(fd_serial_port, RECEIVER);
                     return -1;
                 }
-                sequence_number++;
+                sequence_number = (sequence_number + 1) % 255;
             } else {
                 // wrong sequence number
                 printf("Wrong packet sequence number. Expected: %d ; Got: %d\n", sequence_number, N);
