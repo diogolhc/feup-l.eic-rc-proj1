@@ -101,12 +101,13 @@ static int send_packaged_file(int fd_serial_port, int fd_file) {
 int send_file(int porta, char *path, int path_size, char *file_name) {
     int file_name_size = strlen(file_name);
     if (file_name_size > FILE_NAME_MAX_SIZE) {
-        fprintf(stderr, "File name to big.\n");
+        printf("File name to big.\n");
         return -1;
     }
 
     int fd_file;
     if ((fd_file = open(path, O_RDONLY)) < 0) {
+        printf("File not found.\n");
         return -1;
     }
 
