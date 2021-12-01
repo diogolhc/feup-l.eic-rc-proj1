@@ -24,6 +24,7 @@
 #define STUFFER 0x20
 
 #define TIME_OUT_TIME 3
+#define MAX_NO_TIMEOUT 3
 
 #define DATA_PACKET_MAX_SIZE 1000 // TODO define a good number 
 
