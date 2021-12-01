@@ -349,6 +349,16 @@ static int common_open(int porta) {
     return fd;
 }
 
+static int common_close(int fd) {
+    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
+        perror("tcsetattr");
+        close(fd);
+        return -1;
+    }
+
+    return close(fd);
+}
+
 static void R_invert(){
     R = ((!R) << 7) >> 7;
 }
@@ -369,12 +379,14 @@ int llopen(int porta, type_t type) {
     uint8_t ua[CONTROL_SIZE];
     control_frame_builder(UA, ua);
 
-    switch (type) {
-    case TRANSMITTER:
-        if (setup_alarm() != 0) {
-            return 1;
-        }
+    if (setup_alarm() != 0) {
+        common_close(fd);
+        return -1;
+    }
+    g_count = 0;
 
+    switch (type) {
+    case TRANSMITTER:;
         int ua_received = FALSE;
         int res;
         while (g_count < MAX_NO_TIMEOUT && !ua_received) {
@@ -383,6 +395,7 @@ int llopen(int porta, type_t type) {
             res = write(fd, set, CONTROL_SIZE * sizeof(uint8_t));
             if (res == -1) {
                 printf("llopen() -> write() TRANSMITTER error\n");
+                common_close(fd);
                 return -1;
             }
             printf("%d bytes written\n", res);
@@ -396,7 +409,8 @@ int llopen(int porta, type_t type) {
                 res = read(fd, &byte_read, 1);
                 if (res == 1) {
                     if (update_state_set_ua(C_UA, &state, byte_read) != 0) {
-                        return 1;
+                        common_close(fd);
+                        return -1;
                     }
                     ua_received = (state==STOP);
 
@@ -417,7 +431,7 @@ int llopen(int porta, type_t type) {
         break;
     
     case RECEIVER:
-        // TODO should the receiver also time out?
+        alarm(TIME_OUT_TIME * MAX_NO_TIMEOUT);
         state = START;
         while (state != STOP) {
             uint8_t byte_read = 0;
@@ -425,8 +439,17 @@ int llopen(int porta, type_t type) {
 
             if (res == 1) {
                 if (update_state_set_ua(C_SET, &state, byte_read) != 0) {
-                    return 1;
+                    common_close(fd);
+                    return -1;
                 }
+            } else if (res == -1) {
+                if (g_count > 0) {
+                    printf("llopen timedout\n");
+                } else {
+                    printf("llopen() -> read() RECEIVER error\n");
+                }
+                common_close(fd);
+                return -1;
             } else {
                 printf("DEBUG: not supposed to happen\n");
             }
@@ -434,6 +457,7 @@ int llopen(int porta, type_t type) {
         
         if (write(fd, ua, CONTROL_SIZE) < 0) {
             printf("llopen() -> write() RECEIVER error\n");
+            common_close(fd);
             return -1;
         }
 
@@ -478,7 +502,7 @@ int llclose(int fd, type_t type) {
                 if (res == 1) {
                     if (update_state_set_ua(C_DISC, &state, byte_read) != 0) {
                         close(fd);
-                        return 1;
+                        return -1;
                     }
                     disc_received = (state==STOP);
 
@@ -502,34 +526,38 @@ int llclose(int fd, type_t type) {
         break;
     
     case RECEIVER:
+        alarm(TIME_OUT_TIME * MAX_NO_TIMEOUT);
         state = START;
         while (state != STOP) {
             uint8_t byte_read = 0;
 
-            res = read(fd, &byte_read, 1); // TODO timeout de leitura
+            res = read(fd, &byte_read, 1);
             if (res == 1) {
                 if (update_state_set_ua(C_DISC, &state, byte_read) != 0) {
                     close(fd);
-                    return 1;
+                    return -1;
                 }
                 disc_received = (state==STOP);
+            } else if (res == -1) {
+                if (g_count > 0) {
+                    printf("llclose timedout\n");
+                } else {
+                    printf("llclose() -> read() RECEIVER error\n");
+                }
+                break;
             } else {
                 printf("DEBUG: not supposed to happen\n");
             }
         }
 
-        res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
+        if (res != -1) {
+            res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
+        }
         // no need to wait for UA
         break;
     }
 
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
-        perror("tcsetattr");
-        close(fd);
-        return -1;
-    }
-
-    res = close(fd);
+    res = common_close(fd);
 
     return res;
 }
