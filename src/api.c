@@ -83,9 +83,8 @@ int control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
     return 5;
 }
 
-// c is to pass the C used (SET or UA)
-static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) { //TODO not else *state = START ; compare with falg
-//TODO this state machine can also work for ua_set
+static int update_state_rr_rej(state_sv_frame_t *state, uint8_t byte) {
+
     if (state == NULL) {
         return 1;
     }
@@ -236,22 +235,22 @@ static int update_state_info_rcv(state_info_rcv_t *state, uint8_t byte){
             else *state = I_DATA_COLLECTION;  
             break;
         
-        case (I_GOT_ESC): //TODO maybe not ignore?
+        case (I_GOT_ESC): 
             *state = I_DATA_COLLECTION;
             break;
         
         case (I_GOT_END_FLAG):
-            if (byte) *state = I_TEST_DUP_RR;  // byte = is bcc2 valid ?
+            if (byte) *state = I_TEST_DUP_RR; // byte = is bcc2 valid ?
             else *state = I_TEST_DUP_REJ;
             break;
         
         case (I_TEST_DUP_RR):
-            if (byte) *state = I_RR_DONT_STORE;    // byte = is dup ?
+            if (byte) *state = I_RR_DONT_STORE; // byte = is dup ?
             else *state = I_RR_STORE;
             break;
 
         case (I_TEST_DUP_REJ):
-            if (byte) *state = I_RR_DONT_STORE;  // byte = is dup ?
+            if (byte) *state = I_RR_DONT_STORE; // byte = is dup ?
             else *state = I_REJ;
             break;
 
@@ -460,7 +459,7 @@ int llclose(int fd, type_t type) {
 
     switch (type) {
     case TRANSMITTER:
-        while (g_count < MAX_NO_TIMEOUT && !disc_received) { // TODO use macro for 3
+        while (g_count < MAX_NO_TIMEOUT && !disc_received) {
             state = START;
 
             res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));   
@@ -550,7 +549,7 @@ int message_stuffing(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out_
                 out_message[size_counter++] = ESC ^ STUFFER;
                 break;
             default:
-                out_message[size_counter++] = in_msg[i]; // ^ 0x20;
+                out_message[size_counter++] = in_msg[i];
                 break;
         }
     }
@@ -602,7 +601,7 @@ int llwrite(int fd, uint8_t * buffer, int length){
     memcpy(unstuffed_msg, buffer, length);
     unstuffed_msg[length] = bcc2;
     uint8_t *stuffed_msg = NULL; 
-    int stuffed_msg_len = message_stuffing(unstuffed_msg, length+1, &stuffed_msg); //memory is allocated formstuffed_msg, dont forget to free it
+    int stuffed_msg_len = message_stuffing(unstuffed_msg, length+1, &stuffed_msg);
     int total_msg_len = stuffed_msg_len + CONTROL_SIZE;
     uint8_t *info_msg = malloc(total_msg_len);
 
