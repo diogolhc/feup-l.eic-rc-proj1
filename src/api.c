@@ -58,6 +58,7 @@ int control_frame_builder(control_frame_type_t cft, uint8_t msg[]){
         break;
     
     case DISC:
+        msg[2] = C_DISC;
         break;
     
     case UA:
@@ -445,16 +446,90 @@ int llopen(int porta, type_t type) {
     return fd;
 }
 
-int llclose(int fd) {
-    // TODO not complete yet...
+int llclose(int fd, type_t type) {
+    state_sv_frame_t state;
+    uint8_t disc[CONTROL_SIZE];
+    control_frame_builder(DISC, disc);
+
+    uint8_t ua[CONTROL_SIZE];
+    control_frame_builder(UA, ua);
+
+    int res = 0;
+    int disc_received = FALSE;
+    g_count = 0;
+
+    switch (type) {
+    case TRANSMITTER:
+        while (g_count < 3 && !disc_received) { // TODO use macro for 3
+            state = START;
+
+            res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));   
+            printf("%d bytes written\n", res);
+
+            alarm(TIME_OUT_TIME);
+
+            int timed_out = FALSE;
+            while (!timed_out && state != STOP) {
+                uint8_t byte_read = 0;
+
+                res = read(fd, &byte_read, 1);
+                if (res == 1) {
+                    if (update_state_set_ua(C_DISC, &state, byte_read) != 0) {
+                        close(fd);
+                        return 1;
+                    }
+                    disc_received = (state==STOP);
+
+                } else if (res == -1) {
+                    timed_out = TRUE;
+
+                } else {
+                    printf("DEBUG: not supposed to happen\n");
+                }
+            }
+            
+            alarm(0);
+        }
+
+        if (disc_received) {
+            res = write(fd, ua, CONTROL_SIZE * sizeof(uint8_t));
+        } else {
+            // return erro
+        }
+
+        break;
+    
+    case RECEIVER:
+        state = START;
+        while (state != STOP) {
+            uint8_t byte_read = 0;
+
+            res = read(fd, &byte_read, 1); // TODO timeout de leitura
+            if (res == 1) {
+                if (update_state_set_ua(C_DISC, &state, byte_read) != 0) {
+                    close(fd);
+                    return 1;
+                }
+                disc_received = (state==STOP);
+            } else {
+                printf("DEBUG: not supposed to happen\n");
+            }
+        }
+
+        res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
+        // no need to wait for UA
+        break;
+    }
+
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
         perror("tcsetattr");
+        close(fd);
         return -1;
     }
 
-    close(fd);
+    res = close(fd);
 
-    return 0;
+    return res;
 }
 
 int message_stuffing(uint8_t in_msg[], unsigned int in_msg_size, uint8_t ** out_msg){

@@ -45,7 +45,7 @@ typedef enum type {
 
 int llopen(int porta, type_t type);
 
-int llclose(int fd);
+int llclose(int fd, type_t type);
 
 int llwrite(int fd, uint8_t *buffer, int length);
 

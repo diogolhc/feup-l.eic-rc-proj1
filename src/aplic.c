@@ -128,7 +128,7 @@ int send_file(int porta, char *path, int path_size, char *file_name) {
     int control_packet_size = 0;
     if ((control_packet = get_control_packet(file_size, file_name, file_name_size, &control_packet_size)) == NULL) {
         close(fd_file);
-        llclose(fd_serial_port);
+        llclose(fd_serial_port, TRANSMITTER);
         return -1;
     }
 
@@ -136,14 +136,14 @@ int send_file(int porta, char *path, int path_size, char *file_name) {
     if (llwrite(fd_serial_port, control_packet, control_packet_size) < 0) {
         free(control_packet);
         close(fd_file);
-        llclose(fd_serial_port);
+        llclose(fd_serial_port, TRANSMITTER);
         return -1;
     }
 
     if (send_packaged_file(fd_serial_port, fd_file) != 0) {
         free(control_packet);
         close(fd_file);
-        llclose(fd_serial_port);
+        llclose(fd_serial_port, TRANSMITTER);
         return -1;
     }
 
@@ -152,12 +152,12 @@ int send_file(int porta, char *path, int path_size, char *file_name) {
     if (llwrite(fd_serial_port, control_packet, control_packet_size) < 0) {
         free(control_packet);
         close(fd_file);
-        llclose(fd_serial_port);
+        llclose(fd_serial_port, TRANSMITTER);
         return -1;
     }
 
     free(control_packet);
-    llclose(fd_serial_port);
+    llclose(fd_serial_port, TRANSMITTER);
     close(fd_file);
     return 0;
 }
@@ -170,7 +170,7 @@ int receive_file(int porta) {
 
     uint8_t *packet = malloc(PACKET_MAX_SIZE);
     if (packet == NULL) {
-        llclose(fd_serial_port);
+        llclose(fd_serial_port, RECEIVER);
         return -1;
     }
 
@@ -183,7 +183,7 @@ int receive_file(int porta) {
         int packet_size = 0;
         if ((packet_size = llread(fd_serial_port, packet)) < 0) {
             free(packet);
-            llclose(fd_serial_port);
+            llclose(fd_serial_port, RECEIVER);
             return -1;
         }
 
@@ -204,7 +204,7 @@ int receive_file(int porta) {
             int num_octets = K(packet[3], packet[2]);
             if (write(fd_file_to_write, &packet[4], num_octets) == -1) {
                 free(packet);
-                llclose(fd_serial_port);
+                llclose(fd_serial_port, RECEIVER);
                 return -1;
             }
 
@@ -226,7 +226,7 @@ int receive_file(int porta) {
                     fd_file_to_write = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
                     if (fd_file_to_write == -1) {
                         free(packet);
-                        llclose(fd_serial_port);
+                        llclose(fd_serial_port, RECEIVER);
                         return -1;
                     }
 
@@ -258,7 +258,7 @@ int receive_file(int porta) {
         }
     }
     
-    if (llclose(fd_serial_port) < 0) {
+    if (llclose(fd_serial_port, RECEIVER) < 0) {
         free(packet);
         return -1;
     }

@@ -1,6 +1,14 @@
 S em função de a
 S em função de FER
 
+- FAZER bcc2 antes de stuffing
+- dar stuffing ao bcc também
+
 ASK:
-    -Na aula disse para usar unsigned char, mas as assinaturas de ll... usam char só
-    e dá origem a muitos warnings. Podemos alterar as assianaturas para usar unsigned char* ?
+    - Números de ordem na aplicação? O que fazer com eles?...
+        - não é para fazer nada com ele, assumir que está tudo bem
+
+    - em que horários podemos vir à sala?
+        na quinta vir às 10:30
+
+
