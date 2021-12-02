@@ -5,8 +5,7 @@
 #define FALSE 0
 #define TRUE 1
 
-#define FRAME_MAX_SIZE 1010
-#define HEADER_AND_TAIL_SIZE 10 // more than enough
+#define DATA_PACKET_MAX_SIZE 1000
 
 typedef enum type {
     TRANSMITTER,
