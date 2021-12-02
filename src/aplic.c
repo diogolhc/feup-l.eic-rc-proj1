@@ -156,8 +156,8 @@ int send_file(int porta, char *path, int path_size, char *file_name) {
     }
 
     free(control_packet);
-    llclose(fd_serial_port, TRANSMITTER);
     close(fd_file);
+    llclose(fd_serial_port, TRANSMITTER);
     return 0;
 }
 
