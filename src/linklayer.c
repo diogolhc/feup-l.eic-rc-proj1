@@ -587,10 +587,48 @@ int llclose(int fd, type_t type) {
 
         if (res != -1) {
             printf("DISC received.\n");
-            res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
-            printf("DISC sent.\n");
+            int ua_received = FALSE;
+            while (g_count < MAX_NO_TIMEOUT && !ua_received) {
+                state = START;
+
+                res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
+                if (res == -1) {
+                    printf("llclose() -> write() RECEIVER error\n");
+                    return -1;
+                }
+                printf("DISC sent.\n");
+                printf("%d bytes written\n", res);
+
+                alarm(TIME_OUT_TIME);
+
+                int timed_out = FALSE;
+                while (!timed_out && state != STOP) {
+                    uint8_t byte_read = 0;
+
+                    res = read(fd, &byte_read, 1);
+                    if (res == 1) {
+                        if (update_state_set_ua(C_UA, &state, byte_read) != 0) {
+                            close(fd);
+                            return -1;
+                        }
+                        ua_received = (state==STOP);
+
+                    } else if (res == -1) {
+                        timed_out = TRUE;
+
+                    } else {
+                        printf("DEBUG: not supposed to happen\n");
+                    }
+                }
+                
+                alarm(0);
+            }
+
+            if (ua_received) {
+                printf("UA received.\n");
+            }
         }
-        // no need to wait for UA
+        
         break;
     }
 
