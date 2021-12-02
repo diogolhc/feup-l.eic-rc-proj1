@@ -339,7 +339,7 @@ static int common_open(int porta) {
     char buffer[20];
     if (sprintf(buffer, "/dev/ttyS%d", porta) < 0) {
         perror("");
-        return 1;
+        return -1;
     }
 
 
