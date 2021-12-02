@@ -590,6 +590,7 @@ int llclose(int fd, type_t type) {
         if (res != -1) {
             printf("DISC received.\n");
             int ua_received = FALSE;
+            g_count = 0;
             while (g_count < MAX_NO_TIMEOUT && !ua_received) {
                 state = START;
 
