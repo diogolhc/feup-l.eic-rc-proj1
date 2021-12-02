@@ -261,5 +261,6 @@ int receive_file(int porta) {
         return -1;
     }
 
+    free(packet);
     return 0;
 }

@@ -426,6 +426,7 @@ int llopen(int porta, type_t type) {
                 common_close(fd);
                 return -1;
             }
+            printf("SET sent.\n");
             printf("%d bytes written\n", res);
 
             alarm(TIME_OUT_TIME);
@@ -454,6 +455,7 @@ int llopen(int porta, type_t type) {
         }
         
         if (ua_received) {
+            printf("UA received.\n");
             printf("ACK\n");
         }
         break;
@@ -483,12 +485,14 @@ int llopen(int porta, type_t type) {
             }
         }
         
+        printf("SET received.\n");
         if (write(fd, ua, CONTROL_SIZE) < 0) {
             printf("llopen() -> write() RECEIVER error\n");
             common_close(fd);
             return -1;
         }
 
+        printf("UA sent.\n");
         printf("ACK\n");
         break;
     }
@@ -517,7 +521,8 @@ int llclose(int fd, type_t type) {
             if (res == -1) {
                 printf("llclose() -> write() TRANSMITTER error\n");
                 return -1;
-            }  
+            }
+            printf("DISC sent.\n");
             printf("%d bytes written\n", res);
 
             alarm(TIME_OUT_TIME);
@@ -546,7 +551,9 @@ int llclose(int fd, type_t type) {
         }
 
         if (disc_received) {
+            printf("DISC received.\n");
             res = write(fd, ua, CONTROL_SIZE * sizeof(uint8_t));
+            printf("UA sent.\n");
         } else {
             printf("DISC not received.\n");
         }
@@ -579,7 +586,9 @@ int llclose(int fd, type_t type) {
         }
 
         if (res != -1) {
+            printf("DISC received.\n");
             res = write(fd, disc, CONTROL_SIZE * sizeof(uint8_t));
+            printf("DISC sent.\n");
         }
         // no need to wait for UA
         break;
@@ -737,7 +746,7 @@ int llread(int fd, uint8_t *buffer) {
 
     state_info_rcv_t state;
     uint8_t byte_read = 0;
-    uint8_t data_read[DATA_PACKET_MAX_SIZE + HEADER_AND_TAIL_SIZE];
+    uint8_t data_read[DATA_PACKET_MAX_SIZE * 2 + HEADER_AND_TAIL_SIZE];
     int msg_size = 0;
 
     uint8_t *unstuffed_msg = NULL;
