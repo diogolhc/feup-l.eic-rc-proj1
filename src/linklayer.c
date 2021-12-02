@@ -534,7 +534,7 @@ int llclose(int fd, type_t type) {
                 res = read(fd, &byte_read, 1);
                 if (res == 1) {
                     if (update_state_set_ua(C_DISC, &state, byte_read) != 0) {
-                        close(fd);
+                        common_close(fd);
                         return -1;
                     }
                     disc_received = (state==STOP);
@@ -569,7 +569,7 @@ int llclose(int fd, type_t type) {
             res = read(fd, &byte_read, 1);
             if (res == 1) {
                 if (update_state_set_ua(C_DISC, &state, byte_read) != 0) {
-                    close(fd);
+                    common_close(fd);
                     return -1;
                 }
                 disc_received = (state==STOP);
@@ -579,6 +579,8 @@ int llclose(int fd, type_t type) {
                 } else {
                     printf("llclose() -> read() RECEIVER error\n");
                 }
+                common_close(fd);
+                return -1;
                 break;
             } else {
                 printf("DEBUG: not supposed to happen\n");
@@ -608,7 +610,7 @@ int llclose(int fd, type_t type) {
                     res = read(fd, &byte_read, 1);
                     if (res == 1) {
                         if (update_state_set_ua(C_UA, &state, byte_read) != 0) {
-                            close(fd);
+                            common_close(fd);
                             return -1;
                         }
                         ua_received = (state==STOP);
