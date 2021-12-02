@@ -628,11 +628,12 @@ int llwrite(int fd, uint8_t * buffer, int length){
     int write_successful = 0;
     int ret = 0;
     uint8_t bcc2 = bcc2_builder(buffer, length);
-    uint8_t unstuffed_msg[length+1];
+    uint8_t *unstuffed_msg = malloc((length+1) * sizeof(uint8_t));
     memcpy(unstuffed_msg, buffer, length);
     unstuffed_msg[length] = bcc2;
     uint8_t *stuffed_msg = NULL; 
     int stuffed_msg_len = message_stuffing(unstuffed_msg, length+1, &stuffed_msg);
+    free(unstuffed_msg);
     int total_msg_len = stuffed_msg_len + CONTROL_SIZE;
     uint8_t *info_msg = malloc(total_msg_len);
 
