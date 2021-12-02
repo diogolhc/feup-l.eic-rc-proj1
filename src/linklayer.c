@@ -458,7 +458,11 @@ int llopen(int porta, type_t type) {
         if (ua_received) {
             printf("UA received.\n");
             printf("ACK\n");
+        } else {
+            common_close(fd);
+            return -1;
         }
+
         break;
     
     case RECEIVER:
