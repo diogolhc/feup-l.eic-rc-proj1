@@ -709,7 +709,7 @@ int llread(int fd, uint8_t *buffer) {
 
     state_info_rcv_t state;
     uint8_t byte_read = 0;
-    uint8_t data_read[DATA_PACKET_MAX_SIZE * 2 + OVERFLOW_PROTECTION];
+    uint8_t data_read[FRAME_MAX_SIZE];
     int msg_size = 0;
 
     uint8_t *unstuffed_msg = NULL;

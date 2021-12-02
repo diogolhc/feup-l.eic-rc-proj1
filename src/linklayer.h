@@ -23,9 +23,8 @@
 #define TIME_OUT_TIME 3
 #define MAX_NO_TIMEOUT 3
 
-#define DATA_PACKET_MAX_SIZE 1000
-
-#define OVERFLOW_PROTECTION 10
+#define FRAME_MAX_SIZE 1010
+#define HEADER_AND_TAIL_SIZE 10 // more than enough
 
 typedef enum control_frame_type {
     SET,
