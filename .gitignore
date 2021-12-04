@@ -2,3 +2,6 @@
 receiver
 sender
 test
+docs/*
+!docs/report.tex
+!docs/report.pdf
