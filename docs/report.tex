@@ -44,7 +44,7 @@
     Francisco Colino\\
     \href{mailto:up201905405@edu.fe.up.pt}{up201905405@edu.fe.up.pt}
 }
-\title{Redes de Computadores \\ \large 1.º Trabalho Laboratorial}
+\title{FEUP -- Redes de Computadores \large 2021/2022 \\ \large 1.º Trabalho Laboratorial}
 \date{\today}
 \maketitle
 
@@ -58,33 +58,42 @@
 
 %%% Introdução %%%
 \section{Introdução}
-    \par O objetivo deste trabalho é implementar um protocolo de ligação de dados, 
+
+    O objetivo deste trabalho é implementar um protocolo de ligação de dados, 
     de acordo com o guião fornecido, que permite fazer a transmissão de ficheiros 
-    de forma assíncrona através de portas série assegurando a sua integridade
-    mesmo com interrupções e interferências. Este relatório procura expor o a
-    teoria por de trás deste projeto, como é o que os objetivos foram alcançados
-    e testes à eficiência do protocol. 
-    \par Este está estruturado da seguinte forma:
+    de forma assíncrona através de portas série assegurando a integridade dos ficheiros.
+    Esta integridade deve ser assegurada mesmo com interrupções e interferências. 
+    Este relatório procura expor a teoria por de trás deste projeto, como é que os
+    objetivos foram alcançados e os testes efetuados à eficiência do protocolo. \par
+
+    Este relatório está estruturado da seguinte forma:
     \begin{itemize}
-        \item \textbf{Arquitetura} - Blocos funcionais e interfaces
-        \item \textbf{Estrutura do Código} - Demonstração das APIs, principais 
+        \item \textbf{Arquitetura} -- Blocos funcionais e interfaces.
+        
+        \item \textbf{Estrutura do Código} -- Demonstração das APIs, principais 
         estruturas de dados, principais funções e a sua relação com a arquitetura.
-        \item \textbf{Casos de uso principais} - Identificação dos casos de uso 
-        e representação das sequências de chamada de funções
-        \item \textbf{Protocolo de ligação lógica} - Identificação dos principais
-        aspetos funcionais e descrição das estratégias usadas na implementação destes
-        aspetos com extratos de código
-        \item \textbf{Protocolo de aplicação} - Identificação dos principais
-        aspetos funcionais e descrição das estratégias usadas na implementação destes
-        aspetos com extratos de código
-        \item \textbf{Validação} - Descrição dos testes efetuados com apresentação
-        quantificada dos resultados
-        \item \textbf{Eficiência do protocolo de dados} - Caraterização estatística 
+
+        \item \textbf{Casos de uso principais} -- Identificação dos casos de uso 
+        e representação das sequências de chamada de funções.
+
+        \item \textbf{Protocolo de ligação lógica} -- Identificação dos principais
+        aspetos funcionais da ligação lógica e descrição das estratégias usadas na
+        implementação destes aspetos com extratos de código.
+
+        \item \textbf{Protocolo de aplicação} -- Identificação dos principais
+        aspetos funcionais da aplicação e descrição das estratégias usadas na
+        implementação destes aspetos com extratos de código.
+
+        \item \textbf{Validação} -- Descrição dos testes efetuados com apresentação
+        quantificada dos resultados.
+
+        \item \textbf{Eficiência do protocolo de dados} -- Caraterização estatística 
         da eficiência do protocolo, efetuada recorrendo a medidas sobre o código desenvolvido.
-        \item \textbf{Conclusão} - Síntese da informação apresentada nas secções
+
+        \item \textbf{Conclusão} -- Síntese da informação apresentada nas secções
         anteriores e reflexão sobre os objetivos de aprendizagem alcançados.
+        
     \end{itemize}
-%TODO
 
 
 %%% Arquitetura %%%
