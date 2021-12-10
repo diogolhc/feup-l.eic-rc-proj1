@@ -7,7 +7,7 @@
 
 int main(int argc, char** argv) {
     if (argc != 4) {
-        printf("Usage:\tsender SerialPort Path NameToGive\n\tex: nserial <i> <path> <name>\n");
+        printf("Usage:\tsender SerialPort Path NameToGive\n\tex: sender <i> <path> <name>\n");
         return -1;
     }
 

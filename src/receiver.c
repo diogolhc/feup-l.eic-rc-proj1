@@ -6,7 +6,7 @@
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        printf("Usage:\treceiver SerialPort\n\tex: nserial <i>\n");
+        printf("Usage:\treceiver SerialPort\n\tex: receiver <i>\n");
         return -1;
     }
 

@@ -53,7 +53,19 @@
     \textbf{Sumário}
 \end{center}
 
-%TODO
+Este projeto foi realizado como o sendo o 1.º projeto laboratorial da unidade curricular
+\textit{Redes de Computadores}, fazendo esta parte da \textit{Licenciatura em Engenharia
+Informática e Computação} da \textit{FEUP}. O projeto consistiu na implementação de um
+protocolo de ligação de dados que permite a transferência confiável de dados entre dois
+computadores através da porta série. Para além deste protocolo foi implementada uma
+aplicação de transferência de ficheiros que faz uso do serviço fornecido pelo protocolo
+de ligação de dados. \par
+
+Todos os objetivos foram atingidos na medida em que foi implementado com sucesso um
+protocolo de ligação de dados confiável e a aplicação que faz uso desse protocolo. Esta
+implementação foi testada em contexto laboratorial e provou ser resistente a interrupções
+e interferências. Foi ainda feita uma análise estatística experimental e comparados os
+resultados aos expectados teoricamente.
 
 
 %%% Introdução %%%
@@ -66,11 +78,12 @@
     Este relatório procura expor a teoria por de trás deste projeto, como é que os
     objetivos foram alcançados e os testes efetuados à eficiência do protocolo. \par
 
-    Este relatório está estruturado da seguinte forma:
+    \hfill \break
+    \noindent Este relatório está estruturado da seguinte forma:
     \begin{itemize}
         \item \textbf{Arquitetura} -- Blocos funcionais e interfaces.
         
-        \item \textbf{Estrutura do Código} -- Demonstração das APIs, principais 
+        \item \textbf{Estrutura do Código} -- Demonstração das \textit{APIs}, principais 
         estruturas de dados, principais funções e a sua relação com a arquitetura.
 
         \item \textbf{Casos de uso principais} -- Identificação dos casos de uso 
@@ -88,7 +101,8 @@
         quantificada dos resultados.
 
         \item \textbf{Eficiência do protocolo de dados} -- Caraterização estatística 
-        da eficiência do protocolo, efetuada recorrendo a medidas sobre o código desenvolvido.
+        da eficiência do protocolo, efetuada recorrendo a medidas sobre o código
+        desenvolvido.
 
         \item \textbf{Conclusão} -- Síntese da informação apresentada nas secções
         anteriores e reflexão sobre os objetivos de aprendizagem alcançados.
@@ -98,20 +112,109 @@
 
 %%% Arquitetura %%%
 \section{Arquitetura}
+    
+    O projeto está dividido em dois blocos funcionais principais, \textbf{\textit{Data Link}} e 
+    \textbf{\textit{Application}}, podendo desempenhar dois papeis distintos, emissor e recetor.
+    Estas duas camadas são independentes com o intuito de tornar o código mais modular de 
+    modo a que a camada mais baixo possa ser usado com outras aplicações. \par
+    
+    A \textbf{camada de ligação de dados \textit{(Data Link)}} é o nível mais baixo. Esta trabalha
+    com a porta série e oferece uma interface, que permite a abertura, fecho, leitura e escrita
+    numa porta série. Esta permite comunicação assíncrona e fidedigna entre dois
+    computadores com a capacidade de deteção e tratamento apropriado de erros, interrupções 
+    e interferências sem que haja perdas de dados ou transferência de dados incorretos. \par 
 
-%TODO
+    A \textbf{camada da aplicação \textit{(Application)}} é uma interface que usa a linha de
+    comandos para comunicar com o utilizador. Esta oferece dois serviços: emissor e recetor.
+    Em ambos, o utilizador tem a liberdade de escolher a porta série a utilizar e, no caso do emissor, 
+    escolher o ficheiro a enviar e que nome dar a este no envio ao recetor. A aplicação é também
+    responsável pela divisão do ficheiro original em pacotes de um tamanho predefinido para
+    envio na camada de ligação de dados. \par 
 
 
 %%% Estrutura do código %%%
 \section{Estrutura do código}
 
-%TODO
+    O código encontra-se dividido em 4 ficheiros \textit{.c} de modo a facilitar a divisão
+    nas camadas mencionadas. \par
+    
+    Ao \textbf{\textit{Data Link}} corresponde o ficheiro \textit{linklayer.c}, à
+    \textbf{\textit{Application}} correspondem os ficheiros \textit{aplic.c},
+    \textit{receiver.c} e \textit{sender.c}.
+    
+    \hfill \break
+    \noindent Funções principais da camada \textbf{\textit{Data Link}}:
+    \begin{itemize}
+        \item llopen() -- estabelece a ligação entre as máquinas através de tramas de Supervisão (S)
+        \item llwrite() -- envia tramas de Informação (I) e recebe tramas de Supervisão (S)
+        \item llread() -- lê tramas de Informação (I) e envia tramas de Supervisão (S)
+        \item llclose() -- termina a ligação entre as máquinas através de tramas de Supervisão (S)
+    \end{itemize}
 
+    \hfill \break
+    \noindent Macros principais da camada \textbf{\textit{Data Link}}:
+    \begin{itemize}
+        \item BAUDRATE -- valor da \textit{baud rate} a ser utilizada na comunicação
+        \item TIME\_OUT\_TIME -- segundos que as funções esperam pelo 
+        envio de dados antes de entrarem em \textit{timeout}
+        \item MAX\_NO\_TIMEOUT -- número máximo de \textit{timeouts} consecutivos
+        \item DATA\_PACKET\_MAX\_SIZE -- tamanho máximo que os dados do campo de informação,
+        antes de \textit{stuffing}, podem ter por envio de pacote
+    \end{itemize}
+
+    \hfill \break
+    \noindent Funções principais da camada \textbf{\textit{Application}}:
+    \begin{itemize}
+        \item send\_file() -- reparte um ficheiro em pacotes de tamanho predefinido e faz uso da função 
+        llwrite() para os enviar
+        \item receive\_file() -- recebe diversos pacotes de dados, fazendo uso da função llread(), 
+        e organiza-os de forma a montar o ficheiro recebido
+    \end{itemize}
+    
+    \hfill \break
+    \noindent Macros principais da camada \textbf{\textit{Application}}:
+    \begin{itemize}
+        \item CONTROL\_PACKET\_MAX\_SIZE -- tamanho máximo de um pacote de controlo da aplicação
+        \item PACKET\_MAX\_SIZE -- tamanho máximo de um pacote da aplicação, obtido como sendo
+        o máximo entre o CONTROL\_PACKET\_MAX\_SIZE e o DATA\_PACKET\_MAX\_SIZE
+        \item FILE\_NAME\_MAX\_SIZE -- tamanho máximo do nome de um ficheiro em \textit{linux}
+    \end{itemize}
 
 %%% Casos de uso principais %%%
 \section{Casos de uso principais}
 
-%TODO
+    \subsection{Transmissor}
+    
+        A aplicação é executada em modo \textbf{\textit{sender}}. O utilizador escolhe a porta série a
+        utilizar, o caminho do ficheiro a mandar ao recetor e o nome que deve ser dado ao ficheiro
+        na sua receção. Primeiro é estabelecida a ligação entre o transmissor e o recetor, verificando
+        que o ficheiro passado à aplicação é válido este é então enviado em pacotes através duma porta
+        série fazendo uso do mecanismo \textit{Stop-and-Wait}. Após o envio a ligação é terminada.
+        Exemplo: \hfill \break
+        ./sender 0 ``pinguim.gif'' ``p1.gif''
+
+        \hfill \break
+        \noindent Uma sequência mais detalhada do que acontece:
+        \begin{enumerate}
+            \item Abre a porta série e estabelece a conexão com fd = llopen(``/dev/ttyS0'', TRANSMITTER)
+            \item Envia pacotes de controlo e o ficheiro repartido em pacotes de dados através da função llwrite()
+            \item Fecha a porta série, terminando assim a ligação, com llclose()
+        \end{enumerate}
+
+    \subsection{Recetor}
+
+        A aplicação é executada em modo \textbf{\textit{receiver}}. O utilizador escolhe a porta série a
+        utilizar. Primeiro é estabelecida a ligação entre o transmissor e o recetor e é feita a leitura
+        pacote a pacote do ficheiro a ser recebido. Após a leitura a ligação é terminada. Exemplo: \hfill \break
+        ./receiver 4
+
+        \hfill \break
+        \noindent Uma sequência mais detalhada do que acontece:
+        \begin{enumerate}
+            \item Abre a porta série e estabelece a conexão com fd = llopen(``/dev/ttyS4'', RECEIVER)
+            \item Os pacotes enviados pelo transmissor são lidos sequencialmente através da função llwrite()
+            \item Fecha a porta série, terminando assim a ligação, com llclose()
+        \end{enumerate}
 
 
 %%% Protocolo de ligação lógica %%%
@@ -129,8 +232,28 @@
 %%% Validação %%%
 \section{Validação}
 
-%TODO
+    De modo a validar o correto funcionamento dos protocolos de ligação de dados
+    e de aplicação foram efetuados múltiplos testes, tanto em ambiente simulado usando
+    o utilitário da linha de comandos \textit{socat} e o ficheiro de exemplo fornecido,
+    \textit{cable.c}, como em ambiente laboratorial no laboratório I321 na
+    \textit{FEUP}. Em ambiente laboratorial foi testado o envio de diversos ficheiro
+    de 4 modos distintos:
 
+    \begin{itemize}
+        \item Sem interrupções e sem interferências.
+        \item Com interrupções mas sem interferências.
+        \item Sem interrupções mas com interferências.
+        \item Com interrupções e com interferências.
+    \end{itemize}
+
+    Em todas as situações, os protocolados provaram ser robustos uma vez que garantiram o
+    correto envio sem erros dos ficheiros enviados. Esta certeza foi garantida através do
+    uso do utilitário da linha de comandos \textit{diff} que foi utilizado para comparar
+    na máquina recetora o ficheiro reebido com uma cópia que a mesma já tinha do ficheiro. \par
+
+    Foi também testada a ordem de execução dos programas: \textit{receiver} seguido pelo
+    \textit{sender} e \textit{sender} seguido pelo \textit{receiver} obtendo
+    em ambas as situações um correto funcionamento do envio de ficheiros.
 
 %%% Eficiência do protocolo de ligação de dados %%%
 \section{Eficiência do protocolo de ligação de dados}
@@ -141,7 +264,17 @@
 %%% Conclusões %%%
 \section{Conclusões}
 
-%TODO
+    Foram implementados em C dois protocolos robustos, ligação de dados e aplicação, para
+    transferir ficheiros entre computadores usando a porta série. Foi garantida
+    independência entre camadas e a correta implementação do mecanismo de
+    \textit{Stop-and-Wait} para controlo de erros no protocolo de ligação
+    de dados. Foi ainda escrito este relatório que inclui uma análise de eficiência.
+    Assim, foram cumpridos todos os objetivos deste projeto. \par
+
+    A realização deste projeto permitiu lidar na prática com os detalhes abordados
+    teóricamente nas aulas que de outra forma nos passariam despercebidos. Assim sendo,
+    a sua conceção demonstrou ser uma forma de estudo imersiva dos conteúdos lecionados
+    em \textit{Redes de Computadores}.
 
 
 %%% Anexos %%%
