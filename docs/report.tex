@@ -58,7 +58,7 @@
     \textbf{Sumário}
 \end{center}
 
-Este projeto foi realizado como o sendo o 1.º projeto laboratorial da unidade curricular
+Este projeto foi realizado como sendo o 1.º projeto laboratorial da unidade curricular
 \textit{Redes de Computadores}, fazendo esta parte da \textit{Licenciatura em Engenharia
 Informática e Computação} da \textit{FEUP}. O projeto consistiu na implementação de um
 protocolo de ligação de dados que permite a transferência confiável de dados entre dois
@@ -121,7 +121,7 @@ resultados aos expectados teoricamente.
     O projeto está dividido em dois blocos funcionais principais, \textbf{\textit{Data Link}} e 
     \textbf{\textit{Application}}, podendo desempenhar dois papeis distintos, emissor e recetor.
     Estas duas camadas são independentes com o intuito de tornar o código mais modular de 
-    modo a que a camada mais baixo possa ser usado com outras aplicações. \par
+    modo a que a camada mais baixa possa ser usada com outras aplicações. \par
     
     A \textbf{camada de ligação de dados \textit{(Data Link)}} é o nível mais baixo. Esta trabalha
     com a porta série e oferece uma interface, que permite a abertura, fecho, leitura e escrita
@@ -217,7 +217,7 @@ resultados aos expectados teoricamente.
         \noindent Uma sequência mais detalhada do que acontece:
         \begin{enumerate}
             \item Abre a porta série e estabelece a conexão com fd = llopen(``/dev/ttyS4'', RECEIVER)
-            \item Os pacotes enviados pelo transmissor são lidos sequencialmente através da função llwrite()
+            \item Os pacotes enviados pelo transmissor são lidos sequencialmente através da função llread()
             \item Fecha a porta série, terminando assim a ligação, com llclose()
         \end{enumerate}
 
@@ -240,7 +240,7 @@ resultados aos expectados teoricamente.
     
     \subsection{Estabelecimento da ligação}
 
-    Para este efeito o protocolo quando utilizado como transmitter envia uma trama de Supervisão (S) 
+    Para este efeito, o protocolo quando utilizado como transmitter envia uma trama de Supervisão (S) 
     com o seguinte formato, sendo que C terá valor de SET.
 
     \begin{itemize}
@@ -265,11 +265,9 @@ resultados aos expectados teoricamente.
 static void control_frame_builder(control_frame_type_t cft, uint8_t msg[]);    
 \end{lstlisting}
 
-    O transmitter tem incorporado um timeout que ao enviar a trama espera pela resposta de receiver, se
-    ao fim de 3 segundos não obtiver resposta reenvia a trama, este processo é repetido 3 vezes sendo que
-    o programa termina no 3º timeout.
-
-    Se a receção da trama (S) com C = UA for feita com sucesso pelo transmitter, então a ligação é dada
+    O transmitter tem incorporado um timeout que ao enviar a trama espera pela resposta de receiver. Se
+    ao fim de 3 segundos não obtiver resposta, reenvia a trama. Este processo é repetido 3 vezes sendo que
+    o programa termina no 3º timeout. Se a receção da trama (S) com C = UA for feita com sucesso pelo transmitter, então a ligação é dada
     como estabelecida. Todo este processo é realizado pela função:
 
 \begin{lstlisting}[language=C]
@@ -307,8 +305,8 @@ uint8_t bcc2_builder(uint8_t msg[], unsigned int msg_size);
     trama e quiser a próxima e C = REJ se o receiver rejeitar a trama e precisar que o transmitter a
     reenvie.
 
-    O transmitter tem incorporado um timeout que ao enviar a trama espera pela resposta de receiver, se
-    ao fim de 3 segundos não obtiver resposta reenvia a trama, este processo é repetido 3 vezes sendo que
+    O transmitter tem incorporado um timeout que ao enviar a trama espera pela resposta de receiver. Se
+    ao fim de 3 segundos não obtiver resposta, reenvia a trama. Este processo é repetido 3 vezes sendo que
     o programa termina no 3º timeout.
 
 \begin{lstlisting}[language=C]
@@ -421,7 +419,7 @@ int send_file(int porta, char *path, int path_size, char *file_name);
     \noindent Esta abre o ficheiro a enviar e abre uma conexão usando \textit{llopen()}, da camada
     de ligação lógica, na porta série que recebeu como argumento. De seguida, envia o pacote de controlo
     START, previamente montado, usando \textit{llwrite()}. Após isso torna-se necessário enviar o
-    ficheiro repartido por vários pacotes de dados. Para tal recorre-se à seguinte função já referida
+    ficheiro repartido por vários pacotes de dados. Para tal, recorre-se à seguinte função já referida
     anteriormente:
 
 \begin{lstlisting}[language=C]
@@ -432,7 +430,7 @@ static int send_packaged_file(int fd_serial_port, int fd_file);
     \textit{read()}. Nestes pacotes, como já referido na secção \hyperref[pacotesdados]{Tipos de pacotes}, 
     vão também outras informações. \par
     
-    Após o ficheiro ser enviado na totalidade, é então enviado o pacote de controlo END e após isso basta fechar 
+    Após o ficheiro ser enviado na totalidade, é então enviado o pacote de controlo END e após isso, basta fechar 
     a conexão usando \textit{llclose()} e fechar o ficheiro aberto usando \textit{close()}.
 
     
@@ -471,10 +469,10 @@ int receive_file(int porta);
         \item Com interrupções e com interferências.
     \end{itemize}
 
-    Em todas as situações, os protocolados provaram ser robustos uma vez que garantiram o
+    Em todas as situações, os protocolos provaram ser robustos uma vez que garantiram o
     correto envio sem erros dos ficheiros enviados. Esta certeza foi garantida através do
     uso do utilitário da linha de comandos \textit{diff} que foi utilizado para comparar
-    na máquina recetora o ficheiro reebido com uma cópia que a mesma já tinha do ficheiro. \par
+    na máquina recetora o ficheiro recebido com uma cópia que a mesma já tinha do ficheiro. \par
 
     Foi também testada a ordem de execução dos programas: \textit{receiver} seguido pelo
     \textit{sender} e \textit{sender} seguido pelo \textit{receiver} obtendo
@@ -496,7 +494,7 @@ int receive_file(int porta);
 
     \begin{figure}[H]
         \centering
-        \includegraphics[scale=0.4]{./imgs/a.png}
+        \includegraphics[scale=0.5]{./imgs/a.png}
         \caption{Eficiência em função de a.}
         \label{fig:a}
     \end{figure}
@@ -509,7 +507,7 @@ int receive_file(int porta);
 
     \begin{figure}[H]
         \centering
-        \includegraphics[scale=0.4]{./imgs/fer.png}
+        \includegraphics[scale=0.5]{./imgs/fer.png}
         \caption{Eficiência em função de FER.}
         \label{fig:fer}
     \end{figure}
