@@ -1,8 +1,11 @@
 \documentclass[a4paper,11pt,portuguese]{article}
+\usepackage{geometry}
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage[portuguese]{babel}
+
+\geometry{margin=1.1in}
 
 %%% Estilo de código %%%
 
@@ -220,13 +223,233 @@ resultados aos expectados teoricamente.
 %%% Protocolo de ligação lógica %%%
 \section{Protocolo de ligação lógica}
 
-%TODO
+    O protocolo de ligação lógica teve como objetivo fornecer um serviço de comunicação fiável entre
+    dois sistemas ligados por um meio de comunicação, neste caso um cabo série. Este é responsável
+    por algumas funcionalidades genéricas:
+    \begin{itemize}
+        \item Sincronismo de trama -- dados organizados em tramas
+        \item Estabelecimento e encerramento da ligação
+        \item Byte stuffing das informações das tramas assegurando transparência
+        \item Transmissão de tramas
+        \item Receção das trams com envio de resposta
+        \item Controlo de erros
+        \item Controlo de fluxo
+    \end{itemize}
+    
+    \subsection{Estabelecimento da ligação}
+
+    Para este efeito o protocolo quando utilizado como transmitter envia uma trama de Supervisão (S) 
+    com o seguinte formato, sendo que C terá valor de SET.
+
+    \begin{itemize}
+        \item F -- Flag
+        \item A -- Campo de Endereço
+        \item C -- Campo de Controlo:
+            \begin{itemize}
+                \item SET -- set up
+                \item DISC -- disconnect
+                \item UA -- unnumbered acknowledgment
+                \item RR -- receiver ready
+                \item REJ -- reject 
+            \end{itemize}
+        \item $BCC_1$ -- Campo de Proteção (cabeçalho) 
+        \item F -- Flag
+    \end{itemize}
+
+    No lado do receiver ao receber uma trama (S) com C = SET, manda uma outra trama (S) mas com c = UA,
+    funcionando como resposta de ACK. Para a construção destas tramas é usada a função:
+    
+\begin{lstlisting}[language=C]
+static void control_frame_builder(control_frame_type_t cft, uint8_t msg[]);    
+\end{lstlisting}
+
+    O transmitter tem incorporado um timeout que ao enviar a trama espera pela resposta de receiver, se
+    ao fim de 3 segundos não obtiver resposta reenvia a trama, este processo é repetido 3 vezes sendo que
+    o programa termina no 3º timeout.
+
+    Se a receção da trama (S) com C = UA for feita com sucesso pelo transmitter, então a ligação é dada
+    como estabelecida. Todo este processo é realizado pela função:
+
+\begin{lstlisting}[language=C]
+int llopen(int porta, type_t type);    
+\end{lstlisting}
+
+    \subsection{Envio de tramas}
+
+    Depois da confirmação de que a ligação foi estabelecida, pode-se começar a enviar tramas de
+    informação. Os pacotes a serem enviados, através destas tramas, serão referidos como P. As tramas de 
+    informação têm o seguinte formato:
+
+    \begin{itemize}
+        \item F -- flag
+        \item A -- Campo de Endereço
+        \item C -- Campo de Controlo:
+        \item $BCC_1$ -- Campo de Proteção (cabeçalho)
+        \item $D_1...D_n$ -- Campo de informação (contém pacote gerado pela aplicação)
+        \item $BCC_2$ -- Campo de Proteção (dados)
+        \item F -- flag
+    \end{itemize}
+
+    O $BCC_2$ é calculado através da aplicação da operação XOR entre todos os bytes do pacote P, 
+    um \textit{foldright} com a operação XOR. Isto é feito através da função:
+
+\begin{lstlisting}[language=C]
+uint8_t bcc2_builder(uint8_t msg[], unsigned int msg_size);    
+\end{lstlisting}
+
+    Após a construção do $BCC_2$ procede-se a fazer stuffing do pacote P, resultando no
+    campo $D_1...D_n$, e do próprio $BCC_2$. Esta operação é importante porque assegura a transparência.
+
+    Agora reunem-se as condições para enviar a trama. Após o envio desta, o transmitter fica à espera
+    de uma mensagem de resposta do receiver que será uma trama (S) com C = RR se o receiver aceitar a
+    trama e quiser a próxima e C = REJ se o receiver rejeitar a trama e precisar que o transmitter a
+    reenvie.
+
+    O transmitter tem incorporado um timeout que ao enviar a trama espera pela resposta de receiver, se
+    ao fim de 3 segundos não obtiver resposta reenvia a trama, este processo é repetido 3 vezes sendo que
+    o programa termina no 3º timeout.
+
+\begin{lstlisting}[language=C]
+int llwrite(int fd, uint8_t *buffer, int length);   
+\end{lstlisting}
+
+    \subsection{Receção de tramas}
+
+    O receiver fica à espera de que lhe sejam enviadas tramas de informação (I) no formato referido
+    anteriormente, e à medida que vai recebendo dados vai validando-os através de uma máquina de estados.
+
+    Alguns comportamentos importantes a salientar são os comportamentos na receção dos BCC.
+    No caso de erro de $BCC_1$ o receiver descarta todos os dados dessa trama e não envia resposta, o que
+    leva o transmitter a dar time-out e a reenviar a trama.
+
+    Após a receção de todos os dados, que é detetada com a recção da Flag final, o campo de informação 
+    + $BCC_2$ são \textit{destuffed} e a partir do campo de informação é computado um segundo $BCC_2$.
+
+    \noindent Na comparação do $BCC_2$ recebido com o computado:
+    \begin{itemize}
+        \item Inválido
+            \begin{itemize}
+                \item Se não for uma trama duplicada é enviado REJ
+                \item Se for duplicada, não são guardados os dados e é enviado RR
+            \end{itemize}
+        \item Válido
+            \begin{itemize}
+                \item Se não for uma trama duplicada, são guardados os dados e é enviado RR
+                \item Se for duplicada, não são guardados os dados e é enviado RR
+            \end{itemize}
+    \end{itemize}
+
+    \noindent De notar que as mensagens de REJ e RR são montadas com o valor de R=N(r) que depois é
+    usado para comparação com o valor S=N(s) recebido pelo campo C das tramas de Informação,
+    influenciando as validações do cabeçalho.
+
+\begin{lstlisting}[language=C]
+int llread(int fd, uint8_t *buffer);
+\end{lstlisting}
+
+    \subsection{Terminação da ligação}
+
+    Para encerrar a ligação, o transmitter manda uma trama de (S) com C = DISC, o receiver quando
+    recebe DISC manda ele próprio um DISC e o transmitter por fim manda UA, sinalizando assim
+    a terminação correta da ligação. Estas operações também estão protegidas por time-outs similares
+    aos mencionados anteriormente.
+
+\begin{lstlisting}[language=C]
+int llclose(int fd, type_t type);
+\end{lstlisting}
 
 
 %%% Protocolo de aplicação %%%
 \section{Protocolo de aplicação}
 
-%TODO
+    O protocolo de aplicação implementado teve como objetivo a tranferência de um ficheiro fazendo uso
+    da interface fornecida pela camada de ligação lógica. O protocolo implementado tem as seguintes
+    características:
+
+    \subsection{Tipos de pacotes}
+    A aplicação faz uso de dois tipos de pacotes: pacotes de dados, usados para transferir pedaços de ficheiro,
+    e pacotes de controlo, usados para sinalizar o início e fim de uma transferência.
+    
+    \noindent A seguinte função definida em
+    \textit{aplic.c} monta um pacote de controlo:
+
+\begin{lstlisting}[language=C]
+static uint8_t* get_control_packet(off_t file_size, char *file_name, int file_name_size, int *length);
+\end{lstlisting}
+
+    Nesta função, é gerado o pacote de controlo START. Ela recebe como parâmetros o tamanho e o nome
+    do ficheiro e retorna um pointer para um pacote de controlo assim como um retorno por parâmetro
+    do tamanho desse pacote. O pacote de controlo tem a seguinte composição:
+
+    \begin{itemize}
+        \item C -- 1 byte de campo de controlo (2: START; 3: END)
+        \item TLV (Type, Length, Value) -- os necessários, neste caso 2 (tamanho e nome de ficheiro)
+            \begin{itemize}
+                \item T -- 1 byte que indica o tipo de parâmetro (0: tamanho de ficheiro; 1: nome do ficheiro)
+                \item L -- 1 byte que indica o tamanho do campo seguinte, V
+                \item V -- valor do parâmetro que ocupa o número de bytes indicado em L
+            \end{itemize}
+    \end{itemize}
+
+    \hfill \break
+    \noindent Por outro lado, os pacotes de dados têm a seguinte composição:
+
+    \begin{itemize} \label{pacotesdados}
+        \item C -- 1 byte de controlo (1: DADOS)
+        \item N -- 1 byte de número de sequência em módulo 255
+        \item $L_2L_1$ -- 2 bytes com o número de bytes (K) do campo de dados
+        \item $P_1...P_k$ -- K bytes de dados
+    \end{itemize}
+
+    \hfill \break
+    \noindent Estes pacotes são montados e enviados na seguinte função definida em \textit{aplic.c}:
+
+\begin{lstlisting}[language=C]
+static int send_packaged_file(int fd_serial_port, int fd_file);
+\end{lstlisting}
+
+
+    \subsection{Envio de ficheiro}
+    O envio de um ficheiro é efetuado recorrendo à seguinte função:
+
+\begin{lstlisting}[language=C]
+int send_file(int porta, char *path, int path_size, char *file_name);
+\end{lstlisting}
+
+    \noindent Esta abre o ficheiro a enviar e abre uma conexão usando \textit{llopen()}, da camada
+    de ligação lógica, na porta série que recebeu como argumento. De seguida, envia o pacote de controlo
+    START, previamente montado, usando \textit{llwrite()}. Após isso torna-se necessário enviar o
+    ficheiro repartido por vários pacotes de dados. Para tal recorre-se à seguinte função já referida
+    anteriormente:
+
+\begin{lstlisting}[language=C]
+static int send_packaged_file(int fd_serial_port, int fd_file);
+\end{lstlisting}
+
+    \noindent Ela vai enviando os pacotes usando \textit{llwrite()} à medida que lê pedaços de ficheiro usando
+    \textit{read()}. Nestes pacotes, como já referido na secção \hyperref[pacotesdados]{Tipos de pacotes}, 
+    vão também outras informações. \par
+    
+    Após o ficheiro ser enviado na totalidade, é então enviado o pacote de controlo END e após isso basta fechar 
+    a conexão usando \textit{llclose()} e fechar o ficheiro aberto usando \textit{close()}.
+
+    
+    \subsection{Receção de ficheiro}
+    A receção de um ficheiro é efetuado recorrendo à seguinte função:
+    
+\begin{lstlisting}[language=C]
+int receive_file(int porta);
+\end{lstlisting}
+    
+    \noindent Esta função começa por abrir uma conexão na porta série usando \textit{llopen()}
+    e de seguida vai começar a ler pacotes usando \textit{llread()}.
+
+    Numa execução ela começará por receber o pacote de controlo START. Após isto, já sabe o nome do ficheiro
+    e o tamanho do mesmo. Com esta informação cria um ficheiro e abre-o em modo \textit{append}.
+    De seguida vai recebendo pacotes de dados dos quais retira as porções de ficheiro e acrescenta-as ao
+    final do ficheiro criado anteriormente. No final, irá receber um pacote de controlo END e saberá
+    que a transmissão chegou ao fim podendo fechar o ficheiro usando \textit{close()} e a conexão da porta série
+    usando \textit{llclose()}.
 
 
 %%% Validação %%%
