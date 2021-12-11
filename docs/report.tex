@@ -3,9 +3,11 @@
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
 \usepackage[portuguese]{babel}
 
-\geometry{margin=1.1in}
+\geometry{margin=0.9in}
 
 %%% Estilo de código %%%
 
@@ -481,7 +483,36 @@ int receive_file(int porta);
 %%% Eficiência do protocolo de ligação de dados %%%
 \section{Eficiência do protocolo de ligação de dados}
 
-%TODO
+    De forma a avaliar a eficiência do protocolo de ligação de dados implementado, foi efetuada
+    uma caracterização estatística da eficiência (S) em função de a e do \textit{FER}
+    (Frame error ratio). Os valores resultantes foram então comparados com valores teóricos. \hfill \break
+    Os valores que deram origem aos gráficos que se seguem podem ser lidos em anexo.
+
+    \subsection{S = f(a)}
+    De modo a variar experimentalmente o valor de \textit{a}, foi variado o valor de $T_{prop}$
+    introduzindo um ligeiro atrasado usando \textit{usleep()}. Isto é possível dado que
+    $a = T_{prop}/T_f$. Foi obtido o seguinte gráfico que mostra que os valores medidos seguem a
+    tendência teórica:
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[scale=0.4]{./imgs/a.png}
+        \caption{Eficiência em função de a.}
+        \label{fig:a}
+    \end{figure}
+
+
+    \subsection{S = g(FER)}
+    De modo a variar experimentalmente o valor de FER foram introduzidos erros fictícios nos
+    $BCC_1$ e $BCC_2$ de acordo com o FER pretendido e obteve-se o seguinte gráfico que mostra
+    que os valores medidos seguem a tendência teórica:
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[scale=0.4]{./imgs/fer.png}
+        \caption{Eficiência em função de FER.}
+        \label{fig:fer}
+    \end{figure}
 
 
 %%% Conclusões %%%
@@ -495,7 +526,7 @@ int receive_file(int porta);
     Assim, foram cumpridos todos os objetivos deste projeto. \par
 
     A realização deste projeto permitiu lidar na prática com os detalhes abordados
-    teóricamente nas aulas que de outra forma nos passariam despercebidos. Assim sendo,
+    teoricamente nas aulas que de outra forma nos passariam despercebidos. Assim sendo,
     a sua conceção demonstrou ser uma forma de estudo imersiva dos conteúdos lecionados
     em \textit{Redes de Computadores}.
 
@@ -518,5 +549,12 @@ int receive_file(int porta);
 
 \lstinputlisting[language=C, caption=linklayer.c]{../src/linklayer.c}
 
+
+\subsection{Eficiência em função de 'a'}
+\includegraphics[scale=0.6]{./imgs/grapha.png}
+
+
+\subsection{Eficiência em função de FER}
+\includegraphics[scale=0.8]{./imgs/graphfer.png}
 
 \end{document}
